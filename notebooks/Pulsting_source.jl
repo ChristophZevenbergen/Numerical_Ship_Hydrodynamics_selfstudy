@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.22
+# v0.20.21
 
 using Markdown
 using InteractiveUtils
@@ -129,6 +129,9 @@ k₂(θ) = (1/(2*cos^2(θ)))*(1+2β*cos(θ) - sqrt(1 + 4β*cos(θ)))
 #Int(θ) = k₂(θ)*exp(k₂(θ)*w)-
 end
 
+# ╔═╡ 48cab0f5-42db-486f-a829-a23c3dfab3d2
+
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -138,7 +141,7 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.12.5"
+julia_version = "1.12.4"
 manifest_format = "2.0"
 project_hash = "71853c6197a6a7f222db0f1978c7cb232b87c5ee"
 
@@ -153,5 +156,6 @@ project_hash = "71853c6197a6a7f222db0f1978c7cb232b87c5ee"
 # ╟─9025848e-6135-4f4f-bbc1-454471b6b9ca
 # ╠═32078ab3-7e7f-4914-9c97-719f215c3689
 # ╠═f8c6cda0-9b22-4664-b147-90acd1ff54c7
+# ╠═48cab0f5-42db-486f-a829-a23c3dfab3d2
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
