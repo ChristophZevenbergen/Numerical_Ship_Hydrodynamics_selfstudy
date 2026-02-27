@@ -95,6 +95,40 @@ $\beta=\frac{\bar{U} \omega}{g}, \quad K_0=\frac{g}{\bar{U}^2}$
 $X=K_0\left(x-x_0\right), \quad Y=K_0\left|y-y_0\right|, \quad Z=K_0\left(z+z_0\right)$
 """
 
+# ╔═╡ 32078ab3-7e7f-4914-9c97-719f215c3689
+begin
+g = 9.81
+U = 1
+ω = 1
+x₀ = 0
+y₀ = 0
+z₀ = -1
+x = -1
+y = 0
+z = -1
+
+K₀ = g/U^2
+β = U*ω/g
+X = K₀*(x - x₀)
+Y = K₀*abs(y - y₀)
+Z = K₀*(z + z₀)
+
+end
+
+# ╔═╡ f8c6cda0-9b22-4664-b147-90acd1ff54c7
+begin
+
+
+	
+w(θ) = Z + i(X*cos(θ) + Y*sin(θ))
+k₁(θ) = (1/(2*cos^2(θ)))*(1+2β*cos(θ) + sqrt(1 + 4β*cos(θ)))
+k₂(θ) = (1/(2*cos^2(θ)))*(1+2β*cos(θ) - sqrt(1 + 4β*cos(θ)))
+
+	
+	
+#Int(θ) = k₂(θ)*exp(k₂(θ)*w)-
+end
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -117,5 +151,7 @@ project_hash = "71853c6197a6a7f222db0f1978c7cb232b87c5ee"
 # ╟─eb4a0f96-b7d7-40ef-91d2-45629d9af7bb
 # ╟─1584554f-cdfd-4a88-87b7-0f363a83ad99
 # ╟─9025848e-6135-4f4f-bbc1-454471b6b9ca
+# ╠═32078ab3-7e7f-4914-9c97-719f215c3689
+# ╠═f8c6cda0-9b22-4664-b147-90acd1ff54c7
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

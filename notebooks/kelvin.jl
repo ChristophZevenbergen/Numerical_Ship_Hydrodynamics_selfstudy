@@ -96,6 +96,20 @@ where $i$ is the imaginary unit, $\Im(\zeta)$ returns the imaginary part of the 
 I've plotted these two integrands $N_i,W_i$ as a function of $T$. Play with the source location $x,y,z$ to see how the integrands change.
 """
 
+# ╔═╡ 7c78d9f3-9636-47bd-9ae0-5560c069b337
+md"""
+### Anotations
+
+.$T$ is the wave direction tanθ/cosθ
+
+
+W behaves like a normal wave, for the far field
+
+N behaves like a bessel function in the near field
+
+T = 0 is straigh ahead, and as it varies is the other directions
+"""
+
 # ╔═╡ 6a32d7b0-b49f-4157-92f7-3d487196cf46
 let
 	z = z1
@@ -140,6 +154,9 @@ The code block below runs $O(10^3)$ $\vec x$ cases. `quadgk` is remarkably robus
 x_cases = [(-R*cos(atan(a)),R*sin(atan(a)),-z)
 		for R in 0:0.25:8, a in (0.,0.1,0.3,1/sqrt(8),0.5,1.0), z in 0.5 .^(0:8)];
 
+# ╔═╡ 24b8bf48-3bd5-42eb-9cd0-f9f501dce30d
+length(x_cases)
+
 # ╔═╡ cac768bb-a344-4aea-a516-cd740fa140b7
 @time N_cases = [2/π*quadgk(T->Ni(x,y,z,T),-1,1)[1] for (x,y,z) in x_cases];
 
@@ -153,7 +170,7 @@ x_cases = [(-R*cos(atan(a)),R*sin(atan(a)),-z)
 md"""
 
 ### Activity
- - How many times will we need to evaluate the Green's function $\varphi$ in a 200-panel simulation? What about 2000 panels?
+ - How many times will we need to evaluate the Green's function $\varphi$ in a 200-panel simulation? What about 2000 panels? R: for 200 panels, we need 200² evaluations. each eavluation is 3s. for 2000 panels, we get 100 times the computing time. 4000000 evaluations each 3s => 12000000s = way too long.
  - How much time can we spend improving this quadrature and still come out ahead?
 
 ## 2. Machine Learning
@@ -2038,7 +2055,8 @@ version = "1.13.0+0"
 # ╔═╡ Cell order:
 # ╟─f16f1fc5-e08b-4ebb-ada9-149edef67872
 # ╟─c72cb1e2-42a9-4d4d-82ab-7a608d916b30
-# ╠═ebe67ec1-6b3c-4656-9614-840d17d457f8
+# ╟─ebe67ec1-6b3c-4656-9614-840d17d457f8
+# ╟─7c78d9f3-9636-47bd-9ae0-5560c069b337
 # ╠═0a16323f-657c-4886-864d-bfdae1f15bc9
 # ╟─a27b8f0a-dc4a-452e-88ed-8fcc0b8a1a9a
 # ╟─6a32d7b0-b49f-4157-92f7-3d487196cf46
@@ -2047,6 +2065,7 @@ version = "1.13.0+0"
 # ╠═58f96f50-045c-4549-90c5-5d594d7218f4
 # ╟─23ab0585-99db-4168-9dc4-7a2060c6ee1e
 # ╠═f2c88e9f-0af5-4b8d-91ea-8ec58782e0a2
+# ╠═24b8bf48-3bd5-42eb-9cd0-f9f501dce30d
 # ╠═cac768bb-a344-4aea-a516-cd740fa140b7
 # ╠═4a868860-8d31-4d92-a9e8-48ca527e4edb
 # ╠═79c62237-abab-46fa-ac61-5846c4d43888
