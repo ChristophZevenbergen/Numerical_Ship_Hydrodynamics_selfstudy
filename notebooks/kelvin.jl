@@ -28,6 +28,13 @@ begin
 	md"""x $xs,  y $ys,  z $zs"""
 end
 
+# ╔═╡ 425be609-a19d-448d-a86c-c370fd4a0227
+begin
+	using Printf: @sprintf
+	sNgk=@sprintf "∫Nᵢ=%.3f, error≈%.1e, fevals=%i" Ngk...
+	sWgk=@sprintf "∫Wᵢ=%.3f, error≈%.1e, fevals=%i" Wgk...
+end;
+
 # ╔═╡ 58f96f50-045c-4549-90c5-5d594d7218f4
 begin
 	# Define the integrands
@@ -41,15 +48,15 @@ begin
 	Wgk = quadgk_count(T->Wi(x,y,z1,T),-Inf,Inf)
 end;
 
-# ╔═╡ 425be609-a19d-448d-a86c-c370fd4a0227
-begin
-	using Printf: @sprintf
-	sNgk=@sprintf "∫Nᵢ=%.3f, error≈%.1e, fevals=%i" Ngk...
-	sWgk=@sprintf "∫Wᵢ=%.3f, error≈%.1e, fevals=%i" Wgk...
-end;
-
 # ╔═╡ e02bb307-a92d-4564-9d6e-c46f86ee94c8
 using NeumannKelvin:nearfield
+
+# ╔═╡ b53ac388-3c7b-4753-9b5c-5882080dff4f
+begin
+	using Statistics
+	RMSE(a,b) = @sprintf "Root mean square error = %5.3g%%" 100std(a-b)/std(a);
+	RMSE(N_cases,nearfield_cases)
+end
 
 # ╔═╡ 23a7e728-7c0f-413e-ac85-0fbbdb5ab67a
 using NeumannKelvin:wavelike
@@ -203,13 +210,6 @@ nearfield(-1.,1.,-1.); # make sure the function has compiled
 # ╔═╡ 2d010248-9201-46bd-a3bb-ca15025a549b
 @time nearfield_cases = [nearfield(x,y,z) for (x,y,z) in x_cases];
 
-# ╔═╡ b53ac388-3c7b-4753-9b5c-5882080dff4f
-begin
-	using Statistics
-	RMSE(a,b) = @sprintf "Root mean square error = %5.3g%%" 100std(a-b)/std(a);
-	RMSE(N_cases,nearfield_cases)
-end
-
 # ╔═╡ 0a9c0799-ad81-400e-adb1-9e46d1a1328c
 md"""
 Nice!
@@ -326,6 +326,9 @@ That was certainly a lot of work, but now we can easily create the free surface 
 Again, you can switch over to only use a 15-point Gauss quadrature for the integration to see the importance of our improved integration methods.
 """
 
+# ╔═╡ 3aa065ea-ce12-4c9a-9762-8113b9c13820
+
+
 # ╔═╡ fa8fc9ab-28a1-4480-b8b7-2c9c22f0325f
 begin
 	check = @bind real_only CheckBox(default=false)
@@ -336,6 +339,12 @@ end
 
 # ╔═╡ c72cb1e2-42a9-4d4d-82ab-7a608d916b30
 md"""Only use 15-point quadratures $check"""
+
+# ╔═╡ 3e65426f-ac48-45c9-b65a-dc213d283b1a
+begin
+T = -0.5
+Ni(x,y,z,T)
+end
 
 # ╔═╡ 6c4464ae-baa6-4dbf-8619-556551da306f
 begin
@@ -2059,7 +2068,8 @@ version = "1.13.0+0"
 # ╟─7c78d9f3-9636-47bd-9ae0-5560c069b337
 # ╠═0a16323f-657c-4886-864d-bfdae1f15bc9
 # ╟─a27b8f0a-dc4a-452e-88ed-8fcc0b8a1a9a
-# ╟─6a32d7b0-b49f-4157-92f7-3d487196cf46
+# ╠═6a32d7b0-b49f-4157-92f7-3d487196cf46
+# ╠═3e65426f-ac48-45c9-b65a-dc213d283b1a
 # ╟─425be609-a19d-448d-a86c-c370fd4a0227
 # ╟─f4588bb2-8605-42b7-b149-7f9f33044f6b
 # ╠═58f96f50-045c-4549-90c5-5d594d7218f4
@@ -2087,10 +2097,11 @@ version = "1.13.0+0"
 # ╠═8f72eae3-4589-418a-8049-318d5b671862
 # ╠═7ea6293c-00f1-4594-80a3-12d0a427b3b3
 # ╠═b487033f-cbc1-4dee-8a10-5f1637c775f0
-# ╟─4374a000-69f3-4c8f-a1a6-bfb9bbc7f3b1
-# ╟─6c4464ae-baa6-4dbf-8619-556551da306f
+# ╠═4374a000-69f3-4c8f-a1a6-bfb9bbc7f3b1
+# ╠═3aa065ea-ce12-4c9a-9762-8113b9c13820
+# ╠═6c4464ae-baa6-4dbf-8619-556551da306f
 # ╟─fa8fc9ab-28a1-4480-b8b7-2c9c22f0325f
-# ╟─583cb23d-3ccf-49bd-9959-109711ce07c7
+# ╠═583cb23d-3ccf-49bd-9959-109711ce07c7
 # ╟─7227d01f-67c4-4d6d-80bf-5cab2e066b85
 # ╟─cfc5555e-0f24-404f-8045-7136c435c158
 # ╟─00000000-0000-0000-0000-000000000001
