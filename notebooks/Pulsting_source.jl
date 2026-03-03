@@ -100,7 +100,7 @@ $X=K_0\left(x-x_0\right), \quad Y=K_0\left|y-y_0\right|, \quad Z=K_0\left(z+z_0\
 
 # ╔═╡ 827a5d64-da1f-403a-acd9-44388017989e
 md"""
-This formulation has an complex integral, i.e., the function itself results in a complex value and the lower and upper bounds of the integration are also complex. Which can be a little tricky to visualize.
+This formulation has an complex integral, i.e., the function itself results in a complex value and the lower and upper bounds of the integration are also complex. i.e. this is an [Contour integral](https://en.wikipedia.org/wiki/Contour_integration), which can be a little tricky to visualize.
 
 Furthermore, this new equation, still has some problems, mainly the term $k_2$ is very ocilatory near the $+-\pi/2$ singularity. To better understand how this function behaves, we made some plots.
 
@@ -123,11 +123,64 @@ $\frac{k_2 \exp \left(k_2 w\right) } {\sqrt{1+4 \beta \cos \theta}}$
 md"""
 This part of the integral has no ocilations! very good, but it seems to have some strange things happening with values close to $+-\pi$.
 
-Now we should look at the lower and upper bounds of our integration, dependding on the region we have to integrate, it might me impossible to get a good estimation. Below is the plot of the integrand with a log10 scale, on top (Blue) we plotted a linear line between the lower and upper bounds of our integration.
+Now we should look at the lower and upper bounds of our integration, since this is an analytical solution, the Cauchy's theorem applies and the integration should be path inddependent. Therefore, we must choose a path to integrate and dependding on our choice, it might me impossible to get a good estimation. To better visualize this, we plotted a linear line between the lower and upper bounds of our integration. Below is the plot of the integrand with a log10 scale with the integration path.
 """
 
 # ╔═╡ 68565fb3-eff4-4672-8163-a95d7535485e
+md"""
+If we try to integrate it, conventially, we might get into trouble. After testing for some values, using the adaptive quadrature for a number of cases, the values diverged and resulted in huge errors. Quite unfortunate! It would have been quite usefull for comparison with other metohds.
 
+We must think carefully on how we are going to approach this integral, since it is a contour integral, we can choose other paths for the integral and that is exacly what [Iwashita and Ohkusu (1992)](https://scispace.com/pdf/the-green-function-method-for-ship-motions-at-forward-speed-52wt78s2fs.pdf) proposed in their paper, to use a Steepest decend approach for this integral.
+"""
+
+# ╔═╡ 412d266a-a7a8-41c2-b50d-4b31dd5aa22f
+md"""
+---
+### Steepest descent
+
+The main idea of the steepest descent, is to find the best path for the integral, such that we avoid the exponencially growing and ocilatory region. The math is quite difficult to understand. First we sill separate the integral into two terms, the first one is a function of k₂, which is well behaved and the second is a function of k₁, which is the cause of or highly exponential and ocilatory behaviour.
+
+$\text{Term A (}k_2\text{ term):} \quad I_{k_2} = \int_{\alpha - \pi}^{\pi/2 + \psi - i\epsilon} \frac{k_2 \exp(k_2 w)}{\sqrt{1 + 4\beta \cos\theta}} \, d\theta$
+
+$\text{Term B (}k_1\text{ term):} \quad I_{k_1} = \int_{\alpha - \pi}^{\pi/2 + \psi - i\epsilon} \frac{\text{sgn}(\cos\theta) \, k_1 \exp(k_1 w)}{\sqrt{1 + 4\beta \cos\theta}} \, d\theta$
+
+The term A should be easy to compute using normal integration techniques, while term B demands the steepest descent approach. The solution is a change of variables shown below:
+
+$I_{k_1} = \text{sgnc} \cdot \text{sgns} \int_{\gamma_j}^{\text{sgns} \cdot \pi/2} \frac{k_1 \exp(k_1 w) \, d\theta}{\sqrt{1 + 4\beta \cos\theta}} = \int_{\zeta}^{\infty} \frac{\exp[\phi(M)] \, dM}{\sqrt{1 - [m/(m - \beta)^2]^2}}$
+
+$\text{where} \quad \phi(M) = (m - \beta)^2 Z + i\left[ Xm + \text{sgns} \cdot Y \sqrt{(m - \beta)^4 - m^2} \right]$
+
+$m = \text{sgnc} \cdot M, \quad \zeta = \text{sgnc} \cdot (k_1 \cos\theta)_{\theta = \gamma_j}$
+
+$\begin{cases}
+\text{sgnc} = \text{sgn}(\cos[\text{Re}(\gamma_j)]) \\
+\text{sgns} = \text{sgn}(\sin[\text{Re}(\gamma_j)])
+\end{cases}$
+
+
+The three contour segments are defined by the points $ \gamma_1, \gamma_2, \gamma_3$  where the integration path crosses the real axis:
+
+$\begin{align}
+\gamma_1 &:\quad -\pi < \text{Re}(\gamma_1) < -\frac{\pi}{2} \\
+\gamma_2 &:\quad -\frac{\pi}{2} < \text{Re}(\gamma_2) < 0 \\
+\gamma_3 &:\quad 0 < \text{Re}(\gamma_3) < \frac{\pi}{2}
+\end{align}$
+
+These correspond to the three segments of the original contour:
+
+$\begin{align}
+\text{Segment 1:} &\quad \theta \in [\alpha - \pi,\; \gamma_1], \quad \cos\theta < 0 \\
+\text{Segment 2:} &\quad \theta \in [\gamma_1,\; \gamma_2], \quad \cos\theta > 0,\; \sin\theta < 0 \\
+\text{Segment 3:} &\quad \theta \in [\gamma_2,\; \gamma_3], \quad \cos\theta > 0,\; \sin\theta > 0
+\end{align}$
+
+The upper limit of the original integral lies beyond $\gamma_3: \quad \theta_{\text{upper}} = \frac{\pi}{2} + \psi - i\epsilon$
+"""
+
+# ╔═╡ 48870183-25fd-4178-bb1c-26997220e861
+md"""
+---
+"""
 
 # ╔═╡ 32078ab3-7e7f-4914-9c97-719f215c3689
 begin
@@ -380,6 +433,196 @@ end
 plot_contour_map(β, X, Y, Z)
 end
 
+# ╔═╡ 9a0e9c9d-c181-4f36-8345-971198b1cf1a
+begin
+function plot_contour_map2(β, X, Y, Z)
+
+    ϵ = asinh(abs(Z)/sqrt(X^2 + Y^2))
+    α = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
+    Ψ = acos(X/sqrt(X^2+Y^2))
+
+    lower = α - π
+    upper = π/2 + Ψ - im*ϵ
+
+    t = range(0, 1, length=400)
+    θ_path = lower .+ t .* (upper - lower)
+	path(t) = lower + t * (upper - lower)
+	path_value(t) = visr(path(t))
+
+
+	lim = 3
+	re_range=(-lim,lim) 
+	im_range=(-lim,lim) 
+    N=400
+
+    re = range(re_range[1], re_range[2], length=N)
+    img = range(im_range[1], im_range[2], length=N)
+	
+    K₀ = g/U^2
+    β = U*ω/g
+
+    X = K₀*(x - x₀)
+    Y = K₀*abs(y - y₀)
+    Z = K₀*(z + z₀)
+
+    ϵ = asinh(abs(Z)/sqrt(X^2 + Y^2))
+    α = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
+    Ψ = acos(X/sqrt(X^2+Y^2))
+
+    w(θ) = Z + im*(X*cos(θ) + Y*sin(θ))
+
+    k₁(θ) = (1/(2*cos(θ)^2)) *
+            (1 + 2β*cos(θ) + sqrt(1 + 4β*cos(θ)))
+
+    k₂(θ) = (1/(2*cos(θ)^2)) *
+            (1 + 2β*cos(θ) - sqrt(1 + 4β*cos(θ)))
+
+    T(θ) = (k₂(θ)*exp(k₂(θ)*w(θ))
+           - sign(real(cos(θ)))*k₁(θ)*exp(k₁(θ)*w(θ))) /
+           sqrt(1+4*β*cos(θ))
+	visi(θ) = imag(T(θ))
+	visr(θ) = real(T(θ))
+
+
+		
+	# Define the symlog transformation function
+	symlog10(x, thr=1.0) = sign(x) * log10(1 + abs(x)/thr)
+	inv_symlog10(x, thr=1.0) = sign(x) * thr * (10^abs(x) - 1)
+	
+	# Generate appropriate ticks
+	ticksh = [-10^20, -10^15, -10^10, -10^5, 0, 10^5, 10^10, 10^15, 10^20]
+	tick_labelsh = [string(t) for t in ticksh]
+	tick_positionsh = symlog10.(ticksh)
+
+
+	mapi = [symlog10(visi(r+im*im_j)) for im_j in img, r in re]
+	mapr = [symlog10(visr(r+im*im_j)) for im_j in img, r in re]
+
+	p1 = heatmap(re, img, mapr, aspect_ratio=1,
+        xlabel="ℜ(θ)",
+        ylabel="ℑ(θ)",
+        title="ℜ{F(θ)} in Complex Plane",
+		colorbar=true,
+		clims = (-16,16))
+	
+	plot!(p1, real(θ_path), imag(θ_path),  xlim = re_range, ylim = im_range, color=:blue,		  
+         xlabel="Re(θ)", ylabel="Im(θ)",
+         title="Integration Contour in Complex θ-plane (ℜ)",
+         legend=false, linewidth = 2)
+	
+	
+	# Generate appropriate ticks
+	ticks = [-10^8, -10^6, -10^4, -10^2, 0, 10^2, 10^4, 10^6, 10^8]
+	tick_labels = [string(t) for t in ticks]
+	tick_positions = symlog10.(ticks)
+	
+	p2 = plot(range(0, 1, length=400),t->symlog10(visr(path(t))), yticks = (tick_positions, tick_labels),xlabel="t", label = "ℜ(F(θ))")
+	plot!(p2, range(0, 1, length=400),t->symlog10(visi(path(t))), yticks = (tick_positions, tick_labels),xlabel="t", label = "ℑ(F(θ))")
+	
+	plot(p1, layout=(1,1), size=(1200, 1200))
+end
+plot_contour_map2(β, X, Y, Z)
+end
+
+# ╔═╡ ce93a8de-55cb-4d4c-8652-feb8b186b230
+begin
+function plot_contour_map_steepestdescent(β, X, Y, Z)
+
+    ϵ = asinh(abs(Z)/sqrt(X^2 + Y^2))
+    α = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
+    Ψ = acos(X/sqrt(X^2+Y^2))
+
+    lower = α - π
+    upper = π/2 + Ψ - im*ϵ
+
+    t = range(0, 1, length=400)
+    θ_path = lower .+ t .* (upper - lower)
+	path(t) = lower + t * (upper - lower)
+	path_value(t) = visr(path(t))
+
+
+	lim = 3
+	re_range=(-lim,lim) 
+	im_range=(-lim,lim) 
+    N=400
+
+    re = range(re_range[1], re_range[2], length=N)
+    img = range(im_range[1], im_range[2], length=N)
+	
+    K₀ = g/U^2
+    β = U*ω/g
+
+    X = K₀*(x - x₀)
+    Y = K₀*abs(y - y₀)
+    Z = K₀*(z + z₀)
+
+    ϵ = asinh(abs(Z)/sqrt(X^2 + Y^2))
+    α = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
+    Ψ = acos(X/sqrt(X^2+Y^2))
+
+    w(θ) = Z + im*(X*cos(θ) + Y*sin(θ))
+
+    k₁(θ) = (1/(2*cos(θ)^2)) *
+            (1 + 2β*cos(θ) + sqrt(1 + 4β*cos(θ)))
+
+    k₂(θ) = (1/(2*cos(θ)^2)) *
+            (1 + 2β*cos(θ) - sqrt(1 + 4β*cos(θ)))
+
+    T(θ) = (k₂(θ)*exp(k₂(θ)*w(θ))
+           - sign(real(cos(θ)))*k₁(θ)*exp(k₁(θ)*w(θ))) /
+           sqrt(1+4*β*cos(θ))
+
+	gamma = 1
+	sgnc = sign(cos(real(gamma)))
+	sgns = sign(sin(real(gamma)))
+	m(M) = sgnc*M
+	zeta = sgnc*(k₁(gamma)*cos(gamma))
+	phi(M) = (sgnc*M - β)^2 * Z + im*(X*m(M) + sgns*Y*sqrt((m(M)-β)^4 - m(M)^2))
+	SD(M) = exp(phi(M))/(sqrt(1-(m(M)/(m(M)-β)^2)^2))
+
+	visi(M) = imag(SD(M))
+	visr(M) = real(SD(M))
+
+	
+	# Define the symlog transformation function
+	symlog10(x, thr=1.0) = sign(x) * log10(1 + abs(x)/thr)
+	inv_symlog10(x, thr=1.0) = sign(x) * thr * (10^abs(x) - 1)
+	
+	# Generate appropriate ticks
+	ticksh = [-10^20, -10^15, -10^10, -10^5, 0, 10^5, 10^10, 10^15, 10^20]
+	tick_labelsh = [string(t) for t in ticksh]
+	tick_positionsh = symlog10.(ticksh)
+
+
+	mapi = [symlog10(visi(r+im*im_j)) for im_j in img, r in re]
+	mapr = [symlog10(visr(r+im*im_j)) for im_j in img, r in re]
+
+	p1 = heatmap(re, img, mapr, aspect_ratio=1,
+        xlabel="ℜ(θ)",
+        ylabel="ℑ(θ)",
+        title="ℜ{F(θ)} in Complex Plane",
+		colorbar=true,
+		clims = (-16,16))
+	
+	# plot!(p1, real(θ_path), imag(θ_path),  xlim = re_range, ylim = im_range, color=:blue,		  
+ #         xlabel="Re(θ)", ylabel="Im(θ)",
+ #         title="Integration Contour in Complex θ-plane (ℜ)",
+ #         legend=false, linewidth = 2)
+	
+	
+	# Generate appropriate ticks
+	ticks = [-10^8, -10^6, -10^4, -10^2, 0, 10^2, 10^4, 10^6, 10^8]
+	tick_labels = [string(t) for t in ticks]
+	tick_positions = symlog10.(ticks)
+	
+	p2 = plot(range(0, 1, length=400),t->symlog10(visr(path(t))), yticks = (tick_positions, tick_labels),xlabel="t", label = "ℜ(F(θ))")
+	plot!(p2, range(0, 1, length=400),t->symlog10(visi(path(t))), yticks = (tick_positions, tick_labels),xlabel="t", label = "ℑ(F(θ))")
+	
+	plot(p1, layout=(1,1), size=(1200, 1200))
+end
+plot_contour_map_steepestdescent(β, X, Y, Z)
+end
+
 # ╔═╡ f8c6cda0-9b22-4664-b147-90acd1ff54c7
 begin
 
@@ -393,8 +636,8 @@ T(X, Y, Z, θ) = (k₂(θ)*exp(k₂(θ)*w(θ))-sign(cos(θ))*k₁(θ)*exp(k₁(�
 
 end
 
-# ╔═╡ ef5c4783-2ca5-495f-a08d-a8ac24edceca
-
+# ╔═╡ 3636eb24-e623-43b4-84c0-e2428adaefb7
+Ψ
 
 # ╔═╡ 82b3129b-19bd-4ea1-95f3-31bae45ce6ea
 let
@@ -491,7 +734,7 @@ function Bessho(x, y, z; x₀=0.0, y₀=0.0, z₀=-1.0,
     lower = α - π
     upper = π/2 + Ψ - im*ϵ
 
-    Tgk, err = quadgk(T, lower, upper)
+    Tgk, err = quadgk(T, lower, upper, atol=1e-3)
 
     G = (1/(4π))*(1/R₁ - 1/R₂) - (im*K₀*Tgk)/(2π)
 
@@ -593,7 +836,7 @@ function plot_cos_domain(;
 	#vis(θ) = imag(T(θ))
 	vis(θ) = imag(k₂(θ)*exp(k₂(θ)*w(θ))/sqrt(1+4*β*cos(θ)))
 	vis(θ) = imag(sign(real(cos(θ)))*k₁(θ)*exp(k₁(θ)*w(θ))/sqrt(1+4*β*cos(θ)))
-	vis(θ) = imag(k₂(θ))
+	vis(θ) = imag(k₁(θ))
 	map = [vis(r+im*im_j) for im_j in img, r in re]
 
 	scale = sqrt#ReversibleScale(x -> asinh(x / 2) / log(10), x -> 2sinh(log(10) * x))
@@ -601,8 +844,8 @@ function plot_cos_domain(;
         xlabel="Re(θ)",
         ylabel="Im(θ)",
         title="|cos(θ)| in Complex Plane",
-		colorbar=true)#,
-#		clims = (-100,100))
+		colorbar=true,
+		clims = (-100,100))
 	
     # ϵ = asinh(abs(Z)/sqrt(X^2 + Y^2))
     # α = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
@@ -1862,11 +2105,15 @@ version = "1.13.0+0"
 # ╟─fcac3951-19ba-4833-ad6e-4f4e59af471e
 # ╟─8cacc866-85aa-4df7-ae09-f718ff4651e0
 # ╟─a1219ed4-71ac-4795-8372-94dd8249f716
-# ╠═68565fb3-eff4-4672-8163-a95d7535485e
+# ╟─9a0e9c9d-c181-4f36-8345-971198b1cf1a
+# ╟─68565fb3-eff4-4672-8163-a95d7535485e
+# ╟─412d266a-a7a8-41c2-b50d-4b31dd5aa22f
+# ╟─48870183-25fd-4178-bb1c-26997220e861
+# ╟─ce93a8de-55cb-4d4c-8652-feb8b186b230
 # ╠═32078ab3-7e7f-4914-9c97-719f215c3689
 # ╠═f8c6cda0-9b22-4664-b147-90acd1ff54c7
 # ╠═b709e3c5-0403-460f-965d-f2e616ed2b23
-# ╠═ef5c4783-2ca5-495f-a08d-a8ac24edceca
+# ╠═3636eb24-e623-43b4-84c0-e2428adaefb7
 # ╠═82b3129b-19bd-4ea1-95f3-31bae45ce6ea
 # ╠═4e969a8e-52cb-475d-865b-502603139947
 # ╠═57c82473-5d28-47ed-8631-7e3c7d2a4ca5
