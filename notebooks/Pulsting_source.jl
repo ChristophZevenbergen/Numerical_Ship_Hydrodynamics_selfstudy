@@ -1,11 +1,11 @@
 ### A Pluto.jl notebook ###
-# v0.20.21
+# v0.20.22
 
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 2475330c-407b-423d-86a5-304ac9912550
-using NeumannKelvin,TypedTables,Plots,quadgk
+# ╔═╡ b709e3c5-0403-460f-965d-f2e616ed2b23
+using Plots,Printf, QuadGK
 
 # ╔═╡ 70405296-1194-11f1-9405-d9767047a758
 md"""
@@ -56,7 +56,7 @@ Furhtermore, there is a term $\beta$ that, as discussed by the author, has very 
 
 $\beta = \frac{\bar{U} \omega}{g}$
 
-This term dictates the behavior of our function, whe
+This term dictates the behavior of our function, when...
 """
 
 # ╔═╡ 1584554f-cdfd-4a88-87b7-0f363a83ad99
@@ -98,6 +98,90 @@ $\beta=\frac{\bar{U} \omega}{g}, \quad K_0=\frac{g}{\bar{U}^2}$
 $X=K_0\left(x-x_0\right), \quad Y=K_0\left|y-y_0\right|, \quad Z=K_0\left(z+z_0\right)$
 """
 
+# ╔═╡ 827a5d64-da1f-403a-acd9-44388017989e
+md"""
+This formulation has an complex integral, i.e., the function itself results in a complex value and the lower and upper bounds of the integration are also complex. i.e. this is an [Contour integral](https://en.wikipedia.org/wiki/Contour_integration), which can be a little tricky to visualize.
+
+Furthermore, this new equation, still has some problems, mainly the term $k_2$ is very ocilatory near the $+-\pi/2$ singularity. To better understand how this function behaves, we made some plots.
+
+First we want to understand how the entire function that we want to integrate behaves in the complex plane. For that we made a heatmap plot of the complex plane, plotting both the real and imaginary values as shown bellow:
+
+$\frac{ k_2 \exp \left(k_2 w\right)-\operatorname{sgn}(\cos \theta) k_1 \exp \left(k_1 w\right)}{\sqrt{1+4 \beta \cos \theta}}$
+"""
+
+# ╔═╡ 006dc34c-a237-4491-9427-3bda5f182ac1
+md"""
+This is not good! the function ocilates and grows close to the $\pi/2$ (in the plot the colormap is truncated to allow visualization of the ocilations, but it grows exponentially close to the singularity, colorscale was not working). If we do an integration path passes close to the singularity, we will likely not be able to compute the integral.
+
+The reason for this behaviour is in the term k₁. Let's isolate the rest of the function from if and plot how it behaves without this term. That is
+
+$\frac{k_2 \exp \left(k_2 w\right) } {\sqrt{1+4 \beta \cos \theta}}$
+
+"""
+
+# ╔═╡ 8cacc866-85aa-4df7-ae09-f718ff4651e0
+md"""
+This part of the integral has no ocilations! very good, but it seems to have some strange things happening with values close to $+-\pi$.
+
+Now we should look at the lower and upper bounds of our integration, since this is an analytical solution, the Cauchy's theorem applies and the integration should be path inddependent. Therefore, we must choose a path to integrate and dependding on our choice, it might me impossible to get a good estimation. To better visualize this, we plotted a linear line between the lower and upper bounds of our integration. Below is the plot of the integrand with a log10 scale with the integration path.
+"""
+
+# ╔═╡ 68565fb3-eff4-4672-8163-a95d7535485e
+md"""
+If we try to integrate it, conventially, we might get into trouble. After testing for some values, using the adaptive quadrature for a number of cases, the values diverged and resulted in huge errors. Quite unfortunate! It would have been quite usefull for comparison with other metohds.
+
+We must think carefully on how we are going to approach this integral, since it is a contour integral, we can choose other paths for the integral and that is exacly what [Iwashita and Ohkusu (1992)](https://scispace.com/pdf/the-green-function-method-for-ship-motions-at-forward-speed-52wt78s2fs.pdf) proposed in their paper, to use a Steepest decend approach for this integral.
+"""
+
+# ╔═╡ 412d266a-a7a8-41c2-b50d-4b31dd5aa22f
+md"""
+---
+### Steepest descent
+
+The main idea of the steepest descent, is to find the best path for the integral, such that we avoid the exponencially growing and ocilatory region. The math is quite difficult to understand. First we sill separate the integral into two terms, the first one is a function of k₂, which is well behaved and the second is a function of k₁, which is the cause of or highly exponential and ocilatory behaviour.
+
+$\text{Term A (}k_2\text{ term):} \quad I_{k_2} = \int_{\alpha - \pi}^{\pi/2 + \psi - i\epsilon} \frac{k_2 \exp(k_2 w)}{\sqrt{1 + 4\beta \cos\theta}} \, d\theta$
+
+$\text{Term B (}k_1\text{ term):} \quad I_{k_1} = \int_{\alpha - \pi}^{\pi/2 + \psi - i\epsilon} \frac{\text{sgn}(\cos\theta) \, k_1 \exp(k_1 w)}{\sqrt{1 + 4\beta \cos\theta}} \, d\theta$
+
+The term A should be easy to compute using normal integration techniques, while term B demands the steepest descent approach. The solution is a change of variables shown below:
+
+$I_{k_1} = \text{sgnc} \cdot \text{sgns} \int_{\gamma_j}^{\text{sgns} \cdot \pi/2} \frac{k_1 \exp(k_1 w) \, d\theta}{\sqrt{1 + 4\beta \cos\theta}} = \int_{\zeta}^{\infty} \frac{\exp[\phi(M)] \, dM}{\sqrt{1 - [m/(m - \beta)^2]^2}}$
+
+$\text{where} \quad \phi(M) = (m - \beta)^2 Z + i\left[ Xm + \text{sgns} \cdot Y \sqrt{(m - \beta)^4 - m^2} \right]$
+
+$m = \text{sgnc} \cdot M, \quad \zeta = \text{sgnc} \cdot (k_1 \cos\theta)_{\theta = \gamma_j}$
+
+$\begin{cases}
+\text{sgnc} = \text{sgn}(\cos[\text{Re}(\gamma_j)]) \\
+\text{sgns} = \text{sgn}(\sin[\text{Re}(\gamma_j)])
+\end{cases}$
+
+
+The three contour segments are defined by the points $ \gamma_1, \gamma_2, \gamma_3$  where the integration path crosses the real axis:
+
+$\begin{align}
+\gamma_1 &:\quad -\pi < \text{Re}(\gamma_1) < -\frac{\pi}{2} \\
+\gamma_2 &:\quad -\frac{\pi}{2} < \text{Re}(\gamma_2) < 0 \\
+\gamma_3 &:\quad 0 < \text{Re}(\gamma_3) < \frac{\pi}{2}
+\end{align}$
+
+These correspond to the three segments of the original contour:
+
+$\begin{align}
+\text{Segment 1:} &\quad \theta \in [\alpha - \pi,\; \gamma_1], \quad \cos\theta < 0 \\
+\text{Segment 2:} &\quad \theta \in [\gamma_1,\; \gamma_2], \quad \cos\theta > 0,\; \sin\theta < 0 \\
+\text{Segment 3:} &\quad \theta \in [\gamma_2,\; \gamma_3], \quad \cos\theta > 0,\; \sin\theta > 0
+\end{align}$
+
+The upper limit of the original integral lies beyond $\gamma_3: \quad \theta_{\text{upper}} = \frac{\pi}{2} + \psi - i\epsilon$
+"""
+
+# ╔═╡ 48870183-25fd-4178-bb1c-26997220e861
+md"""
+---
+"""
+
 # ╔═╡ 32078ab3-7e7f-4914-9c97-719f215c3689
 begin
 g = 9.81
@@ -105,65 +189,474 @@ U = 1
 ω = 1
 x₀ = 0
 y₀ = 0
-z₀ = -1
+z₀ = -0.1
 x = -1
-y = 0
+y = 2
 z = -1
-R₀ = -1
-R₁ = 1
+
 
 K₀ = g/U^2
+ℓ = U^2/g
 β = U*ω/g
 X = K₀*(x - x₀)
 Y = K₀*abs(y - y₀)
 Z = K₀*(z + z₀)
 ϵ = asinh(abs(Z)/(sqrt(X^2 + Y^2)))
-α(β) = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
-Ψ = acos(X/sqrt(X^2+Y^2))
+α = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
+Ψ = acos(X/sqrt(X^2+Y^2))	
 end
 
-# ╔═╡ 09ce331e-95e0-409b-8318-c29bbf1cb645
-md"""Integration using Adaptive  quadratures"""
-
-# ╔═╡ a2396c30-097f-48a7-9540-502959859b55
+# ╔═╡ 0885c026-db4a-40e2-8e2e-ccea9d71a4ab
 begin
-	w(θ) = Z + im*(X*cos(θ) + Y*sin(θ))
-	k₁(θ) = (1/(2*cos(θ)^2))*(1+2β*cos(θ) + sqrt(1 + 4β*cos(θ)))
-	k₂(θ) = (1/(2*cos(θ)^2))*(1+2β*cos(θ) - sqrt(1 + 4β*cos(θ)))
-end
+function plot_domain(; 
+                         re_range=(-3,3), 
+                         im_range=(-3,3), 
+                         N=400)
 
-# ╔═╡ 8cd59207-ce7e-43ec-8fa1-8b95eef3b8ea
-begin
-	# Define the integrands
-	T(X, Y, Z, θ) = (k₂(θ)*exp(k₂(θ)*w(θ))-sign(cos(θ))*k₁(θ)*exp(k₁(θ)*w(θ)))/sqrt(1+4*β*cos(θ))
-	# Integrate with quadgk
-	using QuadGK
-	lower_bound = α(β) - π
-    upper_bound = π/2 + Ψ - im * ϵ
-	Tgk = quadgk_count(θ->T(X, Y, Z, θ),lower_bound,upper_bound )
-end;
-
-# ╔═╡ 43ca1239-6a6d-429e-a561-4bc12449f214
-# # begin
+    re = range(re_range[1], re_range[2], length=N)
+    img = range(im_range[1], im_range[2], length=N)
 	
-# 	let
-# 	lower_bound1 = -πα(β) - π
-#     upper_bound1 = π/2 + Ψ - im * ϵ	
-# 	plt2 = plot(range(10*lower_bound1,10*upper_bound1,1000),θ->imag(T(X,Y,Z,θ)),ylabel="Ti",xlabel="θ")
-# 	plot(plt2,layout=(1,1))
-# 	end
+    K₀ = g/U^2
+    β = U*ω/g
 
-# end
+    X = K₀*(x - x₀)
+    Y = K₀*abs(y - y₀)
+    Z = K₀*(z + z₀)
 
-# ╔═╡ bbf1ec87-16b4-438c-b4f1-04a31af6e72b
-display(Tgk)
+    ϵ = asinh(abs(Z)/sqrt(X^2 + Y^2))
+    α = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
+    Ψ = acos(X/sqrt(X^2+Y^2))
 
-# ╔═╡ 91d896c9-8642-4d3a-8d38-4a7e385c4bf9
+    w(θ) = Z + im*(X*cos(θ) + Y*sin(θ))
+
+    k₁(θ) = (1/(2*cos(θ)^2)) *
+            (1 + 2β*cos(θ) + sqrt(1 + 4β*cos(θ)))
+
+    k₂(θ) = (1/(2*cos(θ)^2)) *
+            (1 + 2β*cos(θ) - sqrt(1 + 4β*cos(θ)))
+
+    T(θ) = (k₂(θ)*exp(k₂(θ)*w(θ))
+           - sign(real(cos(θ)))*k₁(θ)*exp(k₁(θ)*w(θ))) /
+           sqrt(1+4*β*cos(θ))
+	visi(θ) = imag(T(θ))
+	visr(θ) = real(T(θ))
+
+	mapi = [visi(r+im*im_j) for im_j in img, r in re]
+	mapr = [visr(r+im*im_j) for im_j in img, r in re]
+
+	pi = heatmap(re, img, mapi, aspect_ratio=1,
+        xlabel="ℜ(θ)",
+        ylabel="ℑ(θ)",
+        title="ℑ{F(θ)} in Complex Plane",
+		colorbar=true,
+		clims = (-100,100))
+	pr = heatmap(re, img, mapr, aspect_ratio=1,
+        xlabel="ℜ(θ)",
+        ylabel="ℑ(θ)",
+        title="ℜ{F(θ)} in Complex Plane",
+		colorbar=true,
+		clims = (-100,100))
+	
+	plot(pr, pi, layout=(1,2), size=(800, 400))
+end
+plot_domain()
+end
+
+# ╔═╡ fcac3951-19ba-4833-ad6e-4f4e59af471e
+begin
+function plot_k2domain(; 
+                         re_range=(-5,5), 
+                         im_range=(-5,5), 
+                         N=400)
+
+    re = range(re_range[1], re_range[2], length=N)
+    img = range(im_range[1], im_range[2], length=N)
+
+
+
+    K₀ = g/U^2
+    β = U*ω/g
+
+    X = K₀*(x - x₀)
+    Y = K₀*abs(y - y₀)
+    Z = K₀*(z + z₀)
+
+    ϵ = asinh(abs(Z)/sqrt(X^2 + Y^2))
+    α = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
+    Ψ = acos(X/sqrt(X^2+Y^2))
+
+    w(θ) = Z + im*(X*cos(θ) + Y*sin(θ))
+
+    k₁(θ) = (1/(2*cos(θ)^2)) *
+            (1 + 2β*cos(θ) + sqrt(1 + 4β*cos(θ)))
+
+    k₂(θ) = (1/(2*cos(θ)^2)) *
+            (1 + 2β*cos(θ) - sqrt(1 + 4β*cos(θ)))
+
+    T(θ) = (k₂(θ)*exp(k₂(θ)*w(θ))
+           - sign(real(cos(θ)))*k₁(θ)*exp(k₁(θ)*w(θ))) /
+           sqrt(1+4*β*cos(θ))
+#	vis(θ) = imag(sign(real(cos(θ)))*k₁(θ)*exp(k₁(θ)*w(θ)) / sqrt(1+4*β*cos(θ))) 
+#	vis(θ) = abs(exp(k₁(θ)) / sqrt(1+4*β*cos(θ))) 
+#	visi(θ) = imag(T(θ))
+#	visr(θ) = real(T(θ))
+	visi(θ) = imag(k₂(θ)*exp(k₂(θ)*w(θ))/sqrt(1+4*β*cos(θ)))
+	visr(θ) = real(k₂(θ)*exp(k₂(θ)*w(θ))/sqrt(1+4*β*cos(θ)))
+#	vis(θ) = imag(sign(real(cos(θ)))*k₁(θ)*exp(k₁(θ)*w(θ))/sqrt(1+4*β*cos(θ)))
+#	vis(θ) = imag(k₂(θ))
+	mapi = [visi(r+im*im_j) for im_j in img, r in re]
+	mapr = [visr(r+im*im_j) for im_j in img, r in re]
+
+	scale = sqrt#ReversibleScale(x -> asinh(x / 2) / log(10), x -> 2sinh(log(10) * x))
+	pi = heatmap(re, img, mapi, aspect_ratio=1,
+        xlabel="ℜ(θ)",
+        ylabel="ℑ(θ)",
+        title="ℑ{F(θ)} in Complex Plane",
+		colorbar=true)
+	pr = heatmap(re, img, mapr, aspect_ratio=1,
+        xlabel="ℜ(θ)",
+        ylabel="ℑ(θ)",
+        title="ℜ{F(θ)} in Complex Plane",
+		colorbar=true)#,
+#		c = cgrad(:grayC, scale=:symlog))
+		# colorbar_scale=:symlog10)	
+		#colorbar_ticks=[-1000, -100, -10, -1, 1, 10, 100, 1000])
+		# colorbar_scale=:log10)
+	
+    # ϵ = asinh(abs(Z)/sqrt(X^2 + Y^2))
+    # α = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
+    # Ψ = acos(X/sqrt(X^2+Y^2))
+
+    # lower = α - π
+    # upper = π/2 + Ψ - im*ϵ
+
+    # t = range(0, 1, length=400)
+    # θ_path = lower .+ t .* (upper - lower)
+
+    # plot(fig[1, 1], real(θ_path), imag(θ_path),
+    #      xlabel="Re(θ)", ylabel="Im(θ)",
+    #      title="Integration Contour in Complex θ-plane",
+    #      legend=false)
+	plot(pr, pi, layout=(1,2), size=(800, 400))
+end
+plot_k2domain()
+end
+
+# ╔═╡ a1219ed4-71ac-4795-8372-94dd8249f716
+begin
+function plot_contour_map(β, X, Y, Z)
+
+    ϵ = asinh(abs(Z)/sqrt(X^2 + Y^2))
+    α = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
+    Ψ = acos(X/sqrt(X^2+Y^2))
+
+    lower = α - π
+    upper = π/2 + Ψ - im*ϵ
+
+    t = range(0, 1, length=400)
+    θ_path = lower .+ t .* (upper - lower)
+	path(t) = lower + t * (upper - lower)
+	path_value(t) = visr(path(t))
+
+
+	lim = 5
+	re_range=(-lim,lim) 
+	im_range=(-lim,lim) 
+    N=400
+
+    re = range(re_range[1], re_range[2], length=N)
+    img = range(im_range[1], im_range[2], length=N)
+	
+    K₀ = g/U^2
+    β = U*ω/g
+
+    X = K₀*(x - x₀)
+    Y = K₀*abs(y - y₀)
+    Z = K₀*(z + z₀)
+
+    ϵ = asinh(abs(Z)/sqrt(X^2 + Y^2))
+    α = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
+    Ψ = acos(X/sqrt(X^2+Y^2))
+
+    w(θ) = Z + im*(X*cos(θ) + Y*sin(θ))
+
+    k₁(θ) = (1/(2*cos(θ)^2)) *
+            (1 + 2β*cos(θ) + sqrt(1 + 4β*cos(θ)))
+
+    k₂(θ) = (1/(2*cos(θ)^2)) *
+            (1 + 2β*cos(θ) - sqrt(1 + 4β*cos(θ)))
+
+    T(θ) = (k₂(θ)*exp(k₂(θ)*w(θ))
+           - sign(real(cos(θ)))*k₁(θ)*exp(k₁(θ)*w(θ))) /
+           sqrt(1+4*β*cos(θ))
+	visi(θ) = imag(T(θ))
+	visr(θ) = real(T(θ))
+
+
+		
+	# Define the symlog transformation function
+	symlog10(x, thr=1.0) = sign(x) * log10(1 + abs(x)/thr)
+	inv_symlog10(x, thr=1.0) = sign(x) * thr * (10^abs(x) - 1)
+	
+	# Generate appropriate ticks
+	ticksh = [-10^20, -10^15, -10^10, -10^5, 0, 10^5, 10^10, 10^15, 10^20]
+	tick_labelsh = [string(t) for t in ticksh]
+	tick_positionsh = symlog10.(ticksh)
+
+
+	mapi = [symlog10(visi(r+im*im_j)) for im_j in img, r in re]
+	mapr = [symlog10(visr(r+im*im_j)) for im_j in img, r in re]
+
+	p1 = heatmap(re, img, mapr, aspect_ratio=1,
+        xlabel="ℜ(θ)",
+        ylabel="ℑ(θ)",
+        title="ℜ{F(θ)} in Complex Plane",
+		colorbar=true,
+		clims = (-16,16))
+	
+	plot!(p1, real(θ_path), imag(θ_path),  xlim = re_range, ylim = im_range, color=:blue,		  
+         xlabel="Re(θ)", ylabel="Im(θ)",
+         title="Integration Contour in Complex θ-plane (ℜ)",
+         legend=false, linewidth = 2)
+	
+	
+	# Generate appropriate ticks
+	ticks = [-10^8, -10^6, -10^4, -10^2, 0, 10^2, 10^4, 10^6, 10^8]
+	tick_labels = [string(t) for t in ticks]
+	tick_positions = symlog10.(ticks)
+	
+	p2 = plot(range(0, 1, length=400),t->symlog10(visr(path(t))), yticks = (tick_positions, tick_labels),xlabel="t", label = "ℜ(F(θ))")
+	plot!(p2, range(0, 1, length=400),t->symlog10(visi(path(t))), yticks = (tick_positions, tick_labels),xlabel="t", label = "ℑ(F(θ))")
+	
+	plot(p1, p2, layout=(2,1), size=(1200, 1200))
+end
+plot_contour_map(β, X, Y, Z)
+end
+
+# ╔═╡ 9a0e9c9d-c181-4f36-8345-971198b1cf1a
+begin
+function plot_contour_map2(β, X, Y, Z)
+
+    ϵ = asinh(abs(Z)/sqrt(X^2 + Y^2))
+    α = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
+    Ψ = acos(X/sqrt(X^2+Y^2))
+
+    lower = α - π
+    upper = π/2 + Ψ - im*ϵ
+
+    t = range(0, 1, length=400)
+    θ_path = lower .+ t .* (upper - lower)
+	path(t) = lower + t * (upper - lower)
+	path_value(t) = visr(path(t))
+
+
+	lim = 3
+	re_range=(-lim,lim) 
+	im_range=(-lim,lim) 
+    N=400
+
+    re = range(re_range[1], re_range[2], length=N)
+    img = range(im_range[1], im_range[2], length=N)
+	
+    K₀ = g/U^2
+    β = U*ω/g
+
+    X = K₀*(x - x₀)
+    Y = K₀*abs(y - y₀)
+    Z = K₀*(z + z₀)
+
+    ϵ = asinh(abs(Z)/sqrt(X^2 + Y^2))
+    α = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
+    Ψ = acos(X/sqrt(X^2+Y^2))
+
+    w(θ) = Z + im*(X*cos(θ) + Y*sin(θ))
+
+    k₁(θ) = (1/(2*cos(θ)^2)) *
+            (1 + 2β*cos(θ) + sqrt(1 + 4β*cos(θ)))
+
+    k₂(θ) = (1/(2*cos(θ)^2)) *
+            (1 + 2β*cos(θ) - sqrt(1 + 4β*cos(θ)))
+
+    T(θ) = (k₂(θ)*exp(k₂(θ)*w(θ))
+           - sign(real(cos(θ)))*k₁(θ)*exp(k₁(θ)*w(θ))) /
+           sqrt(1+4*β*cos(θ))
+	visi(θ) = imag(T(θ))
+	visr(θ) = real(T(θ))
+
+
+		
+	# Define the symlog transformation function
+	symlog10(x, thr=1.0) = sign(x) * log10(1 + abs(x)/thr)
+	inv_symlog10(x, thr=1.0) = sign(x) * thr * (10^abs(x) - 1)
+	
+	# Generate appropriate ticks
+	ticksh = [-10^20, -10^15, -10^10, -10^5, 0, 10^5, 10^10, 10^15, 10^20]
+	tick_labelsh = [string(t) for t in ticksh]
+	tick_positionsh = symlog10.(ticksh)
+
+
+	mapi = [symlog10(visi(r+im*im_j)) for im_j in img, r in re]
+	mapr = [symlog10(visr(r+im*im_j)) for im_j in img, r in re]
+
+	p1 = heatmap(re, img, mapr, aspect_ratio=1,
+        xlabel="ℜ(θ)",
+        ylabel="ℑ(θ)",
+        title="ℜ{F(θ)} in Complex Plane",
+		colorbar=true,
+		clims = (-16,16))
+	
+	plot!(p1, real(θ_path), imag(θ_path),  xlim = re_range, ylim = im_range, color=:blue,		  
+         xlabel="Re(θ)", ylabel="Im(θ)",
+         title="Integration Contour in Complex θ-plane (ℜ)",
+         legend=false, linewidth = 2)
+	
+	
+	# Generate appropriate ticks
+	ticks = [-10^8, -10^6, -10^4, -10^2, 0, 10^2, 10^4, 10^6, 10^8]
+	tick_labels = [string(t) for t in ticks]
+	tick_positions = symlog10.(ticks)
+	
+	p2 = plot(range(0, 1, length=400),t->symlog10(visr(path(t))), yticks = (tick_positions, tick_labels),xlabel="t", label = "ℜ(F(θ))")
+	plot!(p2, range(0, 1, length=400),t->symlog10(visi(path(t))), yticks = (tick_positions, tick_labels),xlabel="t", label = "ℑ(F(θ))")
+	
+	plot(p1, layout=(1,1), size=(1200, 1200))
+end
+plot_contour_map2(β, X, Y, Z)
+end
+
+# ╔═╡ ce93a8de-55cb-4d4c-8652-feb8b186b230
+begin
+function plot_contour_map_steepestdescent(β, X, Y, Z)
+
+    ϵ = asinh(abs(Z)/sqrt(X^2 + Y^2))
+    α = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
+    Ψ = acos(X/sqrt(X^2+Y^2))
+
+    lower = α - π
+    upper = π/2 + Ψ - im*ϵ
+
+    t = range(0, 1, length=400)
+    θ_path = lower .+ t .* (upper - lower)
+	path(t) = lower + t * (upper - lower)
+	path_value(t) = visr(path(t))
+
+
+	lim = 3
+	re_range=(-lim,lim) 
+	im_range=(-lim,lim) 
+    N=400
+
+    re = range(re_range[1], re_range[2], length=N)
+    img = range(im_range[1], im_range[2], length=N)
+	
+    K₀ = g/U^2
+    β = U*ω/g
+
+    X = K₀*(x - x₀)
+    Y = K₀*abs(y - y₀)
+    Z = K₀*(z + z₀)
+
+    ϵ = asinh(abs(Z)/sqrt(X^2 + Y^2))
+    α = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
+    Ψ = acos(X/sqrt(X^2+Y^2))
+
+    w(θ) = Z + im*(X*cos(θ) + Y*sin(θ))
+
+    k₁(θ) = (1/(2*cos(θ)^2)) *
+            (1 + 2β*cos(θ) + sqrt(1 + 4β*cos(θ)))
+
+    k₂(θ) = (1/(2*cos(θ)^2)) *
+            (1 + 2β*cos(θ) - sqrt(1 + 4β*cos(θ)))
+
+    T(θ) = (k₂(θ)*exp(k₂(θ)*w(θ))
+           - sign(real(cos(θ)))*k₁(θ)*exp(k₁(θ)*w(θ))) /
+           sqrt(1+4*β*cos(θ))
+
+	gamma = 1
+	sgnc = sign(cos(real(gamma)))
+	sgns = sign(sin(real(gamma)))
+	m(M) = sgnc*M
+	zeta = sgnc*(k₁(gamma)*cos(gamma))
+	phi(M) = (sgnc*M - β)^2 * Z + im*(X*m(M) + sgns*Y*sqrt((m(M)-β)^4 - m(M)^2))
+	SD(M) = exp(phi(M))/(sqrt(1-(m(M)/(m(M)-β)^2)^2))
+
+	visi(M) = imag(SD(M))
+	visr(M) = real(SD(M))
+
+	
+	# Define the symlog transformation function
+	symlog10(x, thr=1.0) = sign(x) * log10(1 + abs(x)/thr)
+	inv_symlog10(x, thr=1.0) = sign(x) * thr * (10^abs(x) - 1)
+	
+	# Generate appropriate ticks
+	ticksh = [-10^20, -10^15, -10^10, -10^5, 0, 10^5, 10^10, 10^15, 10^20]
+	tick_labelsh = [string(t) for t in ticksh]
+	tick_positionsh = symlog10.(ticksh)
+
+
+	mapi = [symlog10(visi(r+im*im_j)) for im_j in img, r in re]
+	mapr = [symlog10(visr(r+im*im_j)) for im_j in img, r in re]
+
+	p1 = heatmap(re, img, mapr, aspect_ratio=1,
+        xlabel="ℜ(θ)",
+        ylabel="ℑ(θ)",
+        title="ℜ{F(θ)} in Complex Plane",
+		colorbar=true,
+		clims = (-16,16))
+	
+	# plot!(p1, real(θ_path), imag(θ_path),  xlim = re_range, ylim = im_range, color=:blue,		  
+ #         xlabel="Re(θ)", ylabel="Im(θ)",
+ #         title="Integration Contour in Complex θ-plane (ℜ)",
+ #         legend=false, linewidth = 2)
+	
+	
+	# Generate appropriate ticks
+	ticks = [-10^8, -10^6, -10^4, -10^2, 0, 10^2, 10^4, 10^6, 10^8]
+	tick_labels = [string(t) for t in ticks]
+	tick_positions = symlog10.(ticks)
+	
+	p2 = plot(range(0, 1, length=400),t->symlog10(visr(path(t))), yticks = (tick_positions, tick_labels),xlabel="t", label = "ℜ(F(θ))")
+	plot!(p2, range(0, 1, length=400),t->symlog10(visi(path(t))), yticks = (tick_positions, tick_labels),xlabel="t", label = "ℑ(F(θ))")
+	
+	plot(p1, layout=(1,1), size=(1200, 1200))
+end
+plot_contour_map_steepestdescent(β, X, Y, Z)
+end
+
+# ╔═╡ f8c6cda0-9b22-4664-b147-90acd1ff54c7
+begin
+
+
+	
+w(θ) = Z + im*(X*cos(θ) + Y*sin(θ))
+k₁(θ) = (1/(2*cos(θ)^2))*(1+2β*cos(θ) + sqrt(1 + 4β*cos(θ)))
+k₂(θ) = (1/(2*cos(θ)^2))*(1+2β*cos(θ) - sqrt(1 + 4β*cos(θ)))
+T(X, Y, Z, θ) = (k₂(θ)*exp(k₂(θ)*w(θ))-sign(cos(θ))*k₁(θ)*exp(k₁(θ)*w(θ)))/sqrt(1+4*β*cos(θ))
+	
+
+end
+
+# ╔═╡ 3636eb24-e623-43b4-84c0-e2428adaefb7
+Ψ
+
+# ╔═╡ 82b3129b-19bd-4ea1-95f3-31bae45ce6ea
+let
+	lower_bound = imag(α(β))
+    upper_bound = imag(- im * ϵ)	
+#	lower_bound = -π + α(β)
+#    upper_bound = π/2 + Ψ - im * ϵ	
+	plt1 = plot(range(real(π/4), real(3π/4),1000),θ->real(k₁(θ)),ylabel="Ti",xlabel="θ")
+	lower_bound = -π #+ α(β)
+    upper_bound = π/2 + Ψ #- im * ϵ	
+	plt2 = plot(range(lower_bound,upper_bound,1000),θ->imag(T(X,Y,Z,θ)),ylabel="Ti",xlabel="θ")
+	plot(plt1, plt2,layout=(2,1))
+end
+
+# ╔═╡ 4e969a8e-52cb-475d-865b-502603139947
 function Greenfunc(x, y, z)
 	R₁ = sqrt((x - x₀)^2 + (y - y₀)^2 + (z - z₀)^2)
 	R₂ = sqrt((x - x₀)^2 + (y - y₀)^2 + (z + z₀)^2)
 	K₀ = g/U^2
-	ℓ = U^2/g
 	β = U*ω/g
 	X = K₀*(x - x₀)
 	Y = K₀*abs(y - y₀)
@@ -182,118 +675,274 @@ function Greenfunc(x, y, z)
 	G = (1/(4π))*(1/R₁ - 1/R₂) - (im*K₀*Tgk_complex)/(2π)
 end
 
-# ╔═╡ ccdf91db-6977-43aa-947a-f14ecc4774b5
+# ╔═╡ 57c82473-5d28-47ed-8631-7e3c7d2a4ca5
+function GreenfuncB(x, y, z)
+	R₁ = sqrt((x - x₀)^2 + (y - y₀)^2 + (z - z₀)^2)
+	R₂ = sqrt((x - x₀)^2 + (y - y₀)^2 + (z + z₀)^2)
+	K₀ = g/U^2
+	β = U*ω/g
+	X = K₀*(x - x₀)
+	Y = K₀*abs(y - y₀)
+	Z = K₀*(z + z₀)
+	ϵ = asinh(abs(Z)/(sqrt(X^2 + Y^2)))
+	α(β) = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
+	Ψ = acos(X/sqrt(X^2+Y^2))	
+	w(θ) = Z + im*(X*cos(θ) + Y*sin(θ))
+#	k₁(θ) = (1/(2*cos(θ)^2))*(1+2β*cos(θ) + sqrt(1 + 4β*cos(θ)))
+	k₂(θ) = (1/(2*cos(θ)^2))*(1+2β*cos(θ) - sqrt(1 + 4β*cos(θ)))
+
+	m(M) = sign(cos(real()))
+	
+	T(X, Y, Z, θ) = (k₂(θ)*exp(k₂(θ)*w(θ))-sign(cos(θ))*k₁(θ)*exp(k₁(θ)*w(θ)))/sqrt(1+4*β*cos(θ))
+	lower_bound = α(β) - π
+    upper_bound = π/2 + Ψ - im * ϵ
+	Tgk = quadgk_count(θ->T(X, Y, Z, θ),lower_bound,upper_bound )
+	Tgk_complex = Tgk[1] + im*Tgk[2]
+	G = (1/(4π))*(1/R₁ - 1/R₂) - (im*K₀*Tgk_complex)/(2π)
+end
+
+# ╔═╡ 60d43448-f8fc-4396-9570-7a3884fca4bc
+function Bessho(x, y, z; x₀=0.0, y₀=0.0, z₀=-1.0,
+                   g=9.81, U=1.0, ω=1.0)
+
+    R₁ = sqrt((x - x₀)^2 + (y - y₀)^2 + (z - z₀)^2)
+    R₂ = sqrt((x - x₀)^2 + (y - y₀)^2 + (z + z₀)^2)
+
+    K₀ = g/U^2
+    β = U*ω/g
+
+    X = K₀*(x - x₀)
+    Y = K₀*abs(y - y₀)
+    Z = K₀*(z + z₀)
+
+    ϵ = asinh(abs(Z)/sqrt(X^2 + Y^2))
+    α = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
+    Ψ = acos(X/sqrt(X^2+Y^2))
+
+    w(θ) = Z + im*(X*cos(θ) + Y*sin(θ))
+
+    k₁(θ) = (1/(2*cos(θ)^2)) *
+            (1 + 2β*cos(θ) + sqrt(1 + 4β*cos(θ)))
+
+    k₂(θ) = (1/(2*cos(θ)^2)) *
+            (1 + 2β*cos(θ) - sqrt(1 + 4β*cos(θ)))
+
+    T(θ) = (k₂(θ)*exp(k₂(θ)*w(θ))
+           - sign(real(cos(θ)))*k₁(θ)*exp(k₁(θ)*w(θ))) /
+           sqrt(1+4*β*cos(θ))
+
+    lower = α - π
+    upper = π/2 + Ψ - im*ϵ
+
+    Tgk, err = quadgk(T, lower, upper, atol=1e-3)
+
+    G = (1/(4π))*(1/R₁ - 1/R₂) - (im*K₀*Tgk)/(2π)
+
+    return G, err
+end
+
+# ╔═╡ 40f2709d-fed9-4ac3-9d19-89a5dd2390a6
 begin
 	# function ϕ(xi::T,eta,zeta) where T
 	# 	x = (xi/ℓ,abs(T(eta/ℓ)),T(zeta/ℓ))
 	# 	!real_only && return Greenfunc(x)
 	# 	2/pi*quadgk(T->Ni(x...,T),-1,1,maxevals=15)[1] + 4quadgk(T->Wi(x...,T),-Inf,Inf,maxevals=15)[1]
 	# end
-	z_viz =-1
-	ℓ = U^2/g
+	z_viz = -1.
+	using ForwardDiff:derivative
 	
-	
-	xi_rng = range(-1,1,10)
-	ϕ_rng = [Greenfunc.(xi_rng,0.,z_viz)./ℓ for i in xi_rng]
-
-	
+	ϕ_rng, err = [Bessho.(xi_rang, 0., z_viz; x₀=0.0, y₀=0.0, z₀=-1.0,
+                   g=9.81, U=1.0, ω=1.0 ) for xi_rang in range(-2,-1,100)]
+	# ζ_rng = derivative.(x->Greenfunc(x,0.,z_viz),xi_rng)
+	xi_rng = range(-2,-1,100)
 	flow = let
-		plt1 = plot(xi_rng,real(ϕ_rng))
+		plt1 = plot(xi_rng,imag(ϕ_rng),label=nothing,xlabel="",ylabel="ϕ",
+			title="free surface centerline: z=$z, U²/g=$ℓ")
+#		plt2 = plot(xi_rng,ζ_rng,label=nothing,title="",xlabel="ξ",ylabel="ζ")
+		# plot(plt1,plt2,layout=(2,1))
 		plot(plt1,layout=(1,1))
 	end
+end
+
+# ╔═╡ 8bf20000-bd56-400f-a998-04cf48408615
+Bessho(-2,0,-1)
+
+# ╔═╡ cc16f588-e05a-437a-a5f9-f11b6f047a68
+function plot_contour(β, X, Y, Z)
+
+    ϵ = asinh(abs(Z)/sqrt(X^2 + Y^2))
+    α = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
+    Ψ = acos(X/sqrt(X^2+Y^2))
+
+    lower = α - π
+    upper = π/2 + Ψ - im*ϵ
+
+    t = range(0, 1, length=400)
+    θ_path = lower .+ t .* (upper - lower)
+
+    plot(real(θ_path), imag(θ_path),
+         xlabel="Re(θ)", ylabel="Im(θ)",
+         title="Integration Contour in Complex θ-plane",
+         legend=false)
+end
+
+# ╔═╡ 8b4970e9-f394-4084-a003-2a44cc537dda
+
+
+# ╔═╡ 4ded5a86-ba96-4387-a6a4-519e1252aea3
+
+
+# ╔═╡ 94f728bc-021a-4c3f-af50-a95788cdb4db
+
+
+# ╔═╡ 609e7df4-d89a-489f-9a04-28200d8d13c6
+
+
+# ╔═╡ 93bf9046-8b42-46ab-81a0-4b2106e19c4b
+function plot_cos_domain(; 
+                         re_range=(-3,3), 
+                         im_range=(-3,3), 
+                         N=400)
+
+    re = range(re_range[1], re_range[2], length=N)
+    img = range(im_range[1], im_range[2], length=N)
+
+
+
+    K₀ = g/U^2
+    β = U*ω/g
+
+    X = K₀*(x - x₀)
+    Y = K₀*abs(y - y₀)
+    Z = K₀*(z + z₀)
+
+    ϵ = asinh(abs(Z)/sqrt(X^2 + Y^2))
+    α = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
+    Ψ = acos(X/sqrt(X^2+Y^2))
+
+    w(θ) = Z + im*(X*cos(θ) + Y*sin(θ))
+
+    k₁(θ) = (1/(2*cos(θ)^2)) *
+            (1 + 2β*cos(θ) + sqrt(1 + 4β*cos(θ)))
+
+    k₂(θ) = (1/(2*cos(θ)^2)) *
+            (1 + 2β*cos(θ) - sqrt(1 + 4β*cos(θ)))
+
+    T(θ) = (k₂(θ)*exp(k₂(θ)*w(θ))
+           - sign(real(cos(θ)))*k₁(θ)*exp(k₁(θ)*w(θ))) /
+           sqrt(1+4*β*cos(θ))
+#	vis(θ) = imag(sign(real(cos(θ)))*k₁(θ)*exp(k₁(θ)*w(θ)) / sqrt(1+4*β*cos(θ))) 
+#	vis(θ) = abs(exp(k₁(θ)) / sqrt(1+4*β*cos(θ))) 
+	#vis(θ) = imag(T(θ))
+	vis(θ) = imag(k₂(θ)*exp(k₂(θ)*w(θ))/sqrt(1+4*β*cos(θ)))
+	vis(θ) = imag(sign(real(cos(θ)))*k₁(θ)*exp(k₁(θ)*w(θ))/sqrt(1+4*β*cos(θ)))
+	vis(θ) = imag(k₁(θ))
+	map = [vis(r+im*im_j) for im_j in img, r in re]
+
+	scale = sqrt#ReversibleScale(x -> asinh(x / 2) / log(10), x -> 2sinh(log(10) * x))
+	heatmap(re, img, map,
+        xlabel="Re(θ)",
+        ylabel="Im(θ)",
+        title="|cos(θ)| in Complex Plane",
+		colorbar=true,
+		clims = (-100,100))
+	
+    # ϵ = asinh(abs(Z)/sqrt(X^2 + Y^2))
+    # α = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
+    # Ψ = acos(X/sqrt(X^2+Y^2))
+
+    # lower = α - π
+    # upper = π/2 + Ψ - im*ϵ
+
+    # t = range(0, 1, length=400)
+    # θ_path = lower .+ t .* (upper - lower)
+
+    # plot(fig[1, 1], real(θ_path), imag(θ_path),
+    #      xlabel="Re(θ)", ylabel="Im(θ)",
+    #      title="Integration Contour in Complex θ-plane",
+    #      legend=false)
+end
+
+# ╔═╡ 24349668-096b-4f47-b477-d1692b465aa4
+plot_cos_domain()
+
+# ╔═╡ fbe59043-a496-4928-8857-181602f4624a
+k₂(π*0.4999)
+
+# ╔═╡ f4928137-b1eb-4b5d-b2f4-992f97560696
+function plot_integrand_magnitude(X,Y,Z,β)
+
+    ϵ = asinh(abs(Z)/sqrt(X^2 + Y^2))
+    α = β >= 0.25 ? acos(1/(4β)) : -im * acosh(1/(4β))
+    Ψ = acos(X/sqrt(X^2+Y^2))
+
+    lower = α - π
+    upper = π/2 + Ψ - im*ϵ
+
+    t = range(0,1,length=400)
+    θ = lower .+ t .* (upper - lower)
+
+    w(θ) = Z + im*(X*cos(θ) + Y*sin(θ))
+    k₁(θ) = (1/(2*cos(θ)^2))*(1+2β*cos(θ)+sqrt(1+4β*cos(θ)))
+    k₂(θ) = (1/(2*cos(θ)^2))*(1+2β*cos(θ)-sqrt(1+4β*cos(θ)))
+
+    T(θ) = (k₂(θ)*exp(k₂(θ)*w(θ))
+           - sign(real(cos(θ)))*k₁(θ)*exp(k₁(θ)*w(θ))) /
+           sqrt(1+4*β*cos(θ))
+
+    plot(t, abs.(T.(θ)),
+         xlabel="Contour parameter",
+         ylabel="|T(θ)|",
+         title="Integrand Magnitude")
+end
+
+# ╔═╡ db6ed3cb-4248-4d32-b937-f41c42e9f12c
+plot_integrand_magnitude(X,Y,Z,β)
+
+# ╔═╡ 7db133ba-b0dc-4e8a-ae9f-be660595c836
+ϕ_rng
+
+# ╔═╡ 2ce84cad-43bb-4494-a9a9-fcd7129c44e2
+let
+	h = enhance ? 0.025 : 0.1           # grid spacing
+	L=16; W = L/√8                      # grid size
+	xg=-L:h:2; yg=h/2:h:W; yg = [-reverse(yg);yg] # grid points
+	zg = [ϕ(x,y,z) for y in yg, x in xg]
+	mx = max(1,min(20,maximum(abs,zg))); clamp!(zg,-mx,mx)
+	contourf(xg,yg,zg;aspect_ratio=:equal,colormap=:balance,
+			 clims=(-mx,mx),levels=12,line=0)
+	plot!([0,-L],[0,W],c=:black,ls=:dot,label=nothing)
+	plot!([0,-L],[0,-W],c=:black,ls=:dot,label=nothing)
+	plot!(title="free surface plane",xlabel="ξ",ylabel="η")
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-NeumannKelvin = "7f078b06-e5c4-4cf8-bb56-b92882a0ad03"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 QuadGK = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
-TypedTables = "9d95f2ec-7b3d-5a63-8d20-e2491e220bb9"
 
 [compat]
-NeumannKelvin = "~0.9.0"
-Plots = "~1.41.4"
+ForwardDiff = "~0.10.39"
+Plots = "~1.41.5"
 QuadGK = "~2.11.2"
-TypedTables = "~1.4.6"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.12.4"
+julia_version = "1.12.5"
 manifest_format = "2.0"
-project_hash = "a92ef01183d867ac130e19e3c803a394e0766083"
-
-[[deps.AbstractFFTs]]
-deps = ["LinearAlgebra"]
-git-tree-sha1 = "d92ad398961a3ed262d8bf04a1a2b8340f915fef"
-uuid = "621f4979-c628-5d54-868e-fcf4e3e8185c"
-version = "1.5.0"
-weakdeps = ["ChainRulesCore", "Test"]
-
-    [deps.AbstractFFTs.extensions]
-    AbstractFFTsChainRulesCoreExt = "ChainRulesCore"
-    AbstractFFTsTestExt = "Test"
-
-[[deps.AcceleratedKernels]]
-deps = ["ArgCheck", "GPUArraysCore", "KernelAbstractions", "Markdown", "UnsafeAtomics"]
-git-tree-sha1 = "0de01460ed11e90b42ce666c8ed0265bad59aa6a"
-uuid = "6a4ca0a5-0e36-4168-a932-d9be78d558f1"
-version = "0.4.3"
-
-    [deps.AcceleratedKernels.extensions]
-    AcceleratedKernelsoneAPIExt = "oneAPI"
-
-    [deps.AcceleratedKernels.weakdeps]
-    oneAPI = "8f75cd03-7ff8-4ecb-9b8f-daf728133b1b"
-
-[[deps.Accessors]]
-deps = ["CompositionsBase", "ConstructionBase", "Dates", "InverseFunctions", "MacroTools"]
-git-tree-sha1 = "856ecd7cebb68e5fc87abecd2326ad59f0f911f3"
-uuid = "7d9f7c33-5ae7-4f3b-8dc6-eff91059b697"
-version = "0.1.43"
-
-    [deps.Accessors.extensions]
-    AxisKeysExt = "AxisKeys"
-    IntervalSetsExt = "IntervalSets"
-    LinearAlgebraExt = "LinearAlgebra"
-    StaticArraysExt = "StaticArrays"
-    StructArraysExt = "StructArrays"
-    TestExt = "Test"
-    UnitfulExt = "Unitful"
-
-    [deps.Accessors.weakdeps]
-    AxisKeys = "94b1ba4f-4ee9-5380-92f1-94cde586c3c5"
-    IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
-    LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-    StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
-    StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
-    Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-    Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
-
-[[deps.Adapt]]
-deps = ["LinearAlgebra", "Requires"]
-git-tree-sha1 = "7e35fca2bdfba44d797c53dfe63a51fabf39bfc0"
-uuid = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
-version = "4.4.0"
-weakdeps = ["SparseArrays", "StaticArrays"]
-
-    [deps.Adapt.extensions]
-    AdaptSparseArraysExt = "SparseArrays"
-    AdaptStaticArraysExt = "StaticArrays"
+project_hash = "bb7aaf86c49c3e16eb41cca150ba1c08ae0ddd3b"
 
 [[deps.AliasTables]]
 deps = ["PtrArrays", "Random"]
 git-tree-sha1 = "9876e1e164b144ca45e9e3198d0b689cadfed9ff"
 uuid = "66dad0bd-aa9a-41b7-9441-69ab47430ed8"
 version = "1.1.3"
-
-[[deps.ArgCheck]]
-git-tree-sha1 = "f9e9a66c9b7be1ad7372bbd9b062d9230c30c5ce"
-uuid = "dce04be8-c92d-5529-be00-80e4d2c0e197"
-version = "2.5.0"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -302,24 +951,6 @@ version = "1.1.2"
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 version = "1.11.0"
-
-[[deps.Atomix]]
-deps = ["UnsafeAtomics"]
-git-tree-sha1 = "29bb0eb6f578a587a49da16564705968667f5fa8"
-uuid = "a9b6321e-bd34-4604-b9c9-b65b8de01458"
-version = "1.1.2"
-
-    [deps.Atomix.extensions]
-    AtomixCUDAExt = "CUDA"
-    AtomixMetalExt = "Metal"
-    AtomixOpenCLExt = "OpenCL"
-    AtomixoneAPIExt = "oneAPI"
-
-    [deps.Atomix.weakdeps]
-    CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
-    Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
-    OpenCL = "08131aa3-fb12-5dee-8b74-c09406e224a2"
-    oneAPI = "8f75cd03-7ff8-4ecb-9b8f-daf728133b1b"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
@@ -341,16 +972,6 @@ deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jl
 git-tree-sha1 = "fde3bf89aead2e723284a8ff9cdf5b551ed700e8"
 uuid = "83423d85-b0ee-5818-9007-b63ccbeb887a"
 version = "1.18.5+0"
-
-[[deps.ChainRulesCore]]
-deps = ["Compat", "LinearAlgebra"]
-git-tree-sha1 = "e4c6a16e77171a5f5e25e9646617ab1c276c5607"
-uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-version = "1.26.0"
-weakdeps = ["SparseArrays"]
-
-    [deps.ChainRulesCore.extensions]
-    ChainRulesCoreSparseArraysExt = "SparseArrays"
 
 [[deps.CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
@@ -390,116 +1011,38 @@ git-tree-sha1 = "37ea44092930b1811e666c3bc38065d7d87fcc74"
 uuid = "5ae59095-9a9b-59fe-a467-6f913c188581"
 version = "0.13.1"
 
-[[deps.Combinatorics]]
-git-tree-sha1 = "c761b00e7755700f9cdf5b02039939d1359330e1"
-uuid = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
-version = "1.1.0"
-
-[[deps.CommonSolve]]
-git-tree-sha1 = "78ea4ddbcf9c241827e7035c3a03e2e456711470"
-uuid = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
-version = "0.2.6"
-
 [[deps.CommonSubexpressions]]
 deps = ["MacroTools"]
 git-tree-sha1 = "cda2cfaebb4be89c9084adaca7dd7333369715c5"
 uuid = "bbf7d656-a473-5ed7-a52c-81e309532950"
 version = "0.3.1"
 
-[[deps.Compat]]
-deps = ["TOML", "UUIDs"]
-git-tree-sha1 = "9d8a54ce4b17aa5bdce0ea5c34bc5e7c340d16ad"
-uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "4.18.1"
-weakdeps = ["Dates", "LinearAlgebra"]
-
-    [deps.Compat.extensions]
-    CompatLinearAlgebraExt = "LinearAlgebra"
-
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
 version = "1.3.0+1"
 
-[[deps.CompositionsBase]]
-git-tree-sha1 = "802bb88cd69dfd1509f6670416bd4434015693ad"
-uuid = "a33af91c-f02d-484b-be07-31d278c5ca2b"
-version = "0.1.2"
-weakdeps = ["InverseFunctions"]
-
-    [deps.CompositionsBase.extensions]
-    CompositionsBaseInverseFunctionsExt = "InverseFunctions"
-
 [[deps.ConcurrentUtilities]]
 deps = ["Serialization", "Sockets"]
-git-tree-sha1 = "d9d26935a0bcffc87d2613ce14c527c99fc543fd"
+git-tree-sha1 = "21d088c496ea22914fe80906eb5bce65755e5ec8"
 uuid = "f0e56b4a-5159-44fe-b623-3e5288b988bb"
-version = "2.5.0"
-
-[[deps.ConstructionBase]]
-git-tree-sha1 = "b4b092499347b18a015186eae3042f72267106cb"
-uuid = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
-version = "1.6.0"
-
-    [deps.ConstructionBase.extensions]
-    ConstructionBaseIntervalSetsExt = "IntervalSets"
-    ConstructionBaseLinearAlgebraExt = "LinearAlgebra"
-    ConstructionBaseStaticArraysExt = "StaticArrays"
-
-    [deps.ConstructionBase.weakdeps]
-    IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
-    LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-    StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+version = "2.5.1"
 
 [[deps.Contour]]
 git-tree-sha1 = "439e35b0b36e2e5881738abc8857bd92ad6ff9a8"
 uuid = "d38c429a-6771-53c6-b99e-75d170b6e991"
 version = "0.6.3"
 
-[[deps.Crayons]]
-git-tree-sha1 = "249fe38abf76d48563e2f4556bebd215aa317e15"
-uuid = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
-version = "4.1.1"
-
 [[deps.DataAPI]]
 git-tree-sha1 = "abe83f3a2f1b857aac70ef8b269080af17764bbe"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
 version = "1.16.0"
-
-[[deps.DataInterpolations]]
-deps = ["EnumX", "FindFirstFunctions", "ForwardDiff", "LinearAlgebra", "PrettyTables", "RecipesBase", "Reexport"]
-git-tree-sha1 = "db37d8739c369b9e7212f8e61e37611bda6fa2e1"
-uuid = "82cc6244-b520-54b8-b5a6-8a565e85f1d0"
-version = "8.9.0"
-
-    [deps.DataInterpolations.extensions]
-    DataInterpolationsChainRulesCoreExt = "ChainRulesCore"
-    DataInterpolationsMakieExt = "Makie"
-    DataInterpolationsOptimExt = "Optim"
-    DataInterpolationsRegularizationToolsExt = "RegularizationTools"
-    DataInterpolationsSparseConnectivityTracerExt = ["SparseConnectivityTracer", "FillArrays"]
-    DataInterpolationsSymbolicsExt = "Symbolics"
-
-    [deps.DataInterpolations.weakdeps]
-    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-    FillArrays = "1a297f60-69ca-5386-bcde-b61e274b549b"
-    Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
-    Optim = "429524aa-4258-5aef-a3af-852621145aeb"
-    RegularizationTools = "29dad682-9a27-4bc3-9c72-016788665182"
-    SparseConnectivityTracer = "9f842d2f-2579-4b1d-911e-f412cf18a3f5"
-    Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
-    Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [[deps.DataStructures]]
 deps = ["OrderedCollections"]
 git-tree-sha1 = "e357641bb3e0638d353c4b29ea0e40ea644066a6"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 version = "0.19.3"
-
-[[deps.DataValueInterfaces]]
-git-tree-sha1 = "bfc1187b79289637fa0ef6d4436ebdfe6905cbd6"
-uuid = "e2d170a0-9d28-54be-80f0-106bbe20a464"
-version = "1.0.0"
 
 [[deps.Dates]]
 deps = ["Printf"]
@@ -517,12 +1060,6 @@ deps = ["Mmap"]
 git-tree-sha1 = "9e2f36d3c96a820c678f2f1f1782582fcf685bae"
 uuid = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 version = "1.9.1"
-
-[[deps.Dictionaries]]
-deps = ["Indexing", "Random", "Serialization"]
-git-tree-sha1 = "a55766a9c8f66cf19ffcdbdb1444e249bb4ace33"
-uuid = "85a47980-9c8c-11e8-2b9f-f7ca1fa99fb4"
-version = "0.4.6"
 
 [[deps.DiffResults]]
 deps = ["StaticArraysCore"]
@@ -546,11 +1083,6 @@ deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 version = "1.7.0"
 
-[[deps.EnumX]]
-git-tree-sha1 = "7bebc8aad6ee6217c78c5ddcf7ed289d65d0263e"
-uuid = "4e289a0a-7415-4d19-859d-a7e5c4648b56"
-version = "1.0.6"
-
 [[deps.EpollShim_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "8a4be429317c42cfae6a7fc03c31bad1970c310d"
@@ -569,11 +1101,6 @@ git-tree-sha1 = "27af30de8b5445644e8ffe3bcb0d72049c089cf1"
 uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
 version = "2.7.3+0"
 
-[[deps.ExprTools]]
-git-tree-sha1 = "27415f162e6028e81c72b82ef756bf321213b6ec"
-uuid = "e2ba6199-217a-4e67-a87a-7c52f15ade04"
-version = "0.1.10"
-
 [[deps.FFMPEG]]
 deps = ["FFMPEG_jll"]
 git-tree-sha1 = "95ecf07c2eea562b5adbd0696af6db62c0f52560"
@@ -586,44 +1113,9 @@ git-tree-sha1 = "01ba9d15e9eae375dc1eb9589df76b3572acd3f2"
 uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
 version = "8.0.1+0"
 
-[[deps.FFTW]]
-deps = ["AbstractFFTs", "FFTW_jll", "Libdl", "LinearAlgebra", "MKL_jll", "Preferences", "Reexport"]
-git-tree-sha1 = "97f08406df914023af55ade2f843c39e99c5d969"
-uuid = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
-version = "1.10.0"
-
-[[deps.FFTW_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "6d6219a004b8cf1e0b4dbe27a2860b8e04eba0be"
-uuid = "f5851436-0d7a-5f13-b9de-f02708fd171a"
-version = "3.3.11+0"
-
-[[deps.FastChebInterp]]
-deps = ["ChainRulesCore", "FFTW", "StaticArrays"]
-git-tree-sha1 = "5b59bdc6f9517bf659ac173dac84c577fe48b0c1"
-uuid = "cf66c380-9a80-432c-aff8-4f9c79c0bdde"
-version = "1.2.0"
-
-[[deps.FastClosures]]
-git-tree-sha1 = "acebe244d53ee1b461970f8910c235b259e772ef"
-uuid = "9aa1b823-49e4-5ca5-8b0f-3971ec8bab6a"
-version = "0.3.2"
-
-[[deps.FastGaussQuadrature]]
-deps = ["LinearAlgebra", "SpecialFunctions", "StaticArrays"]
-git-tree-sha1 = "0044e9f5e49a57e88205e8f30ab73928b05fe5b6"
-uuid = "442a2c76-b920-505d-bb47-c5924d526838"
-version = "1.1.0"
-
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 version = "1.11.0"
-
-[[deps.FindFirstFunctions]]
-deps = ["PrecompileTools"]
-git-tree-sha1 = "27b495de668ccea58de6b06d6d13181396598ea0"
-uuid = "64ca27bc-2ba2-4a57-88aa-44e436879224"
-version = "1.8.0"
 
 [[deps.FixedPointNumbers]]
 deps = ["Statistics"]
@@ -647,10 +1139,12 @@ deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "LinearAlgebra", "Lo
 git-tree-sha1 = "afb7c51ac63e40708a3071f80f5e84a752299d4f"
 uuid = "f6369f11-7733-5829-9624-2563aa707210"
 version = "0.10.39"
-weakdeps = ["StaticArrays"]
 
     [deps.ForwardDiff.extensions]
     ForwardDiffStaticArraysExt = "StaticArrays"
+
+    [deps.ForwardDiff.weakdeps]
+    StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [[deps.FreeType2_jll]]
 deps = ["Artifacts", "Bzip2_jll", "JLLWrappers", "Libdl", "Zlib_jll"]
@@ -669,12 +1163,6 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Libglvnd_jll", "Xorg_libXcursor_jl
 git-tree-sha1 = "b7bfd56fa66616138dfe5237da4dc13bbd83c67f"
 uuid = "0656b61e-2033-5cc2-a64a-77c0f6c09b89"
 version = "3.4.1+0"
-
-[[deps.GPUArraysCore]]
-deps = ["Adapt"]
-git-tree-sha1 = "83cf05ab16a73219e5f6bd1bdfa9848fa24ac627"
-uuid = "46192b85-c4d5-4398-a991-12ede77f4527"
-version = "0.2.0"
 
 [[deps.GR]]
 deps = ["Artifacts", "Base64", "DelimitedFiles", "Downloads", "GR_jll", "HTTP", "JSON", "Libdl", "LinearAlgebra", "Preferences", "Printf", "Qt6Wayland_jll", "Random", "Serialization", "Sockets", "TOML", "Tar", "Test", "p7zip_jll"]
@@ -708,9 +1196,9 @@ version = "9.55.1+0"
 
 [[deps.Glib_jll]]
 deps = ["Artifacts", "GettextRuntime_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Libiconv_jll", "Libmount_jll", "PCRE2_jll", "Zlib_jll"]
-git-tree-sha1 = "6b4d2dc81736fe3980ff0e8879a9fc7c33c44ddf"
+git-tree-sha1 = "24f6def62397474a297bfcec22384101609142ed"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
-version = "2.86.2+0"
+version = "2.86.3+0"
 
 [[deps.Graphite2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -722,12 +1210,6 @@ version = "1.3.15+0"
 git-tree-sha1 = "53bb909d1151e57e2484c3d1b53e19552b887fb2"
 uuid = "42e2da0e-8278-4e71-bc24-59509adca0fe"
 version = "1.0.2"
-
-[[deps.HCubature]]
-deps = ["Combinatorics", "DataStructures", "LinearAlgebra", "QuadGK", "StaticArrays"]
-git-tree-sha1 = "8ee627fb73ecba0b5254158b04d4745611b404a1"
-uuid = "19dc6840-f33b-545b-b366-655c7e3ffd49"
-version = "1.8.0"
 
 [[deps.HTTP]]
 deps = ["Base64", "CodecZlib", "ConcurrentUtilities", "Dates", "ExceptionUnwrapping", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "OpenSSL", "PrecompileTools", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
@@ -741,47 +1223,15 @@ git-tree-sha1 = "f923f9a774fcf3f5cb761bfa43aeadd689714813"
 uuid = "2e76f6c2-a576-52d4-95c1-20adfe4de566"
 version = "8.5.1+0"
 
-[[deps.ImplicitBVH]]
-deps = ["AcceleratedKernels", "Adapt", "ArgCheck", "Atomix", "DocStringExtensions", "GPUArraysCore", "KernelAbstractions", "LinearAlgebra"]
-git-tree-sha1 = "23ab86c4458e35f0e38e5af0095f84990c25b1d8"
-uuid = "932a18dc-bb55-4cd5-bdd6-1368ec9cea29"
-version = "0.7.0"
-
-[[deps.Indexing]]
-git-tree-sha1 = "ce1566720fd6b19ff3411404d4b977acd4814f9f"
-uuid = "313cdc1a-70c2-5d6a-ae34-0150d3930a38"
-version = "1.1.1"
-
-[[deps.IntelOpenMP_jll]]
-deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl"]
-git-tree-sha1 = "ec1debd61c300961f98064cfb21287613ad7f303"
-uuid = "1d5cc7b8-4909-519e-a0f8-d0f5ad9712d0"
-version = "2025.2.0+0"
-
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 version = "1.11.0"
 
-[[deps.InverseFunctions]]
-git-tree-sha1 = "a779299d77cd080bf77b97535acecd73e1c5e5cb"
-uuid = "3587e190-3f89-42d0-90ee-14403ec27112"
-version = "0.1.17"
-weakdeps = ["Dates", "Test"]
-
-    [deps.InverseFunctions.extensions]
-    InverseFunctionsDatesExt = "Dates"
-    InverseFunctionsTestExt = "Test"
-
 [[deps.IrrationalConstants]]
 git-tree-sha1 = "b2d91fe939cae05960e760110b328288867b5758"
 uuid = "92d709cd-6900-40b7-9082-c6be49f344b6"
 version = "0.2.6"
-
-[[deps.IteratorInterfaceExtensions]]
-git-tree-sha1 = "a3f24677c21f5bbe9d2a714f95dcd58337fb2856"
-uuid = "82899510-4779-5014-852e-03e436cf321d"
-version = "1.0.0"
 
 [[deps.JLFzf]]
 deps = ["REPL", "Random", "fzf_jll"]
@@ -817,28 +1267,6 @@ version = "3.1.4+0"
 deps = ["StyledStrings"]
 uuid = "ac6e5ff7-fb65-4e79-a425-ec3bc9c03011"
 version = "1.12.0"
-
-[[deps.KernelAbstractions]]
-deps = ["Adapt", "Atomix", "InteractiveUtils", "MacroTools", "PrecompileTools", "Requires", "StaticArrays", "UUIDs"]
-git-tree-sha1 = "b5a371fcd1d989d844a4354127365611ae1e305f"
-uuid = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
-version = "0.9.39"
-
-    [deps.KernelAbstractions.extensions]
-    EnzymeExt = "EnzymeCore"
-    LinearAlgebraExt = "LinearAlgebra"
-    SparseArraysExt = "SparseArrays"
-
-    [deps.KernelAbstractions.weakdeps]
-    EnzymeCore = "f151be2c-9106-41f4-ab19-57ee4f262869"
-    LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-    SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-
-[[deps.Krylov]]
-deps = ["LinearAlgebra", "Printf", "SparseArrays"]
-git-tree-sha1 = "125d65fe5042faf078383312dd060adf11d90802"
-uuid = "ba0b0d4f-ebba-5204-a429-3ac8c609bfb7"
-version = "0.10.5"
 
 [[deps.LAME_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -886,11 +1314,6 @@ version = "0.16.10"
     SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
     SymEngine = "123dc426-2d89-5057-bbad-38513e3affd8"
     tectonic_jll = "d7dd28d6-a5e6-559c-9131-7eb760cdacc5"
-
-[[deps.LazyArtifacts]]
-deps = ["Artifacts", "Pkg"]
-uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
-version = "1.11.0"
 
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
@@ -941,9 +1364,9 @@ version = "1.18.0+0"
 
 [[deps.Libmount_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "3acf07f130a76f87c041cfb2ff7d7284ca67b072"
+git-tree-sha1 = "97bbca976196f2a1eb9607131cb108c69ec3f8a6"
 uuid = "4b2f31a3-9ecc-558c-b454-b3730dcb73e9"
-version = "2.41.2+0"
+version = "2.41.3+0"
 
 [[deps.Libtiff_jll]]
 deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "LERC_jll", "Libdl", "XZ_jll", "Zlib_jll", "Zstd_jll"]
@@ -953,36 +1376,14 @@ version = "4.7.2+0"
 
 [[deps.Libuuid_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "2a7a12fc0a4e7fb773450d17975322aa77142106"
+git-tree-sha1 = "d0205286d9eceadc518742860bf23f703779a3d6"
 uuid = "38a345b3-de98-5d2b-a5d3-14cd9215e700"
-version = "2.41.2+0"
+version = "2.41.3+0"
 
 [[deps.LinearAlgebra]]
 deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 version = "1.12.0"
-
-[[deps.LinearOperators]]
-deps = ["FastClosures", "LinearAlgebra", "Printf", "Requires", "SparseArrays", "TimerOutputs"]
-git-tree-sha1 = "db137007d2c4ed948aa5f2518a2b451851ea8bda"
-uuid = "5c8ed15e-5a4c-59e4-a42b-c7e8811fb125"
-version = "2.11.0"
-
-    [deps.LinearOperators.extensions]
-    LinearOperatorsAMDGPUExt = "AMDGPU"
-    LinearOperatorsCUDAExt = "CUDA"
-    LinearOperatorsChainRulesCoreExt = "ChainRulesCore"
-    LinearOperatorsJLArraysExt = "JLArrays"
-    LinearOperatorsLDLFactorizationsExt = "LDLFactorizations"
-    LinearOperatorsMetalExt = "Metal"
-
-    [deps.LinearOperators.weakdeps]
-    AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
-    CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
-    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-    JLArrays = "27aeb0d3-9eb9-45fb-866b-73c2ecf80fcb"
-    LDLFactorizations = "40e66cde-538c-5869-a4ad-c39174c6795b"
-    Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
 
 [[deps.LogExpFunctions]]
 deps = ["DocStringExtensions", "IrrationalConstants", "LinearAlgebra"]
@@ -1009,12 +1410,6 @@ deps = ["Dates", "Logging"]
 git-tree-sha1 = "f00544d95982ea270145636c181ceda21c4e2575"
 uuid = "e6f89c97-d47a-5376-807f-9c37f3926c36"
 version = "1.2.0"
-
-[[deps.MKL_jll]]
-deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "oneTBB_jll"]
-git-tree-sha1 = "282cadc186e7b2ae0eeadbd7a4dffed4196ae2aa"
-uuid = "856f044c-d86e-5d09-b602-aeab76dc8ba7"
-version = "2025.2.0+0"
 
 [[deps.MacroTools]]
 git-tree-sha1 = "1e0228a030642014fe5cfe68c2c0a818f9e3f522"
@@ -1067,22 +1462,6 @@ version = "1.1.3"
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 version = "1.3.0"
 
-[[deps.NeumannKelvin]]
-deps = ["AcceleratedKernels", "DataInterpolations", "FastChebInterp", "FastGaussQuadrature", "ForwardDiff", "HCubature", "ImplicitBVH", "Krylov", "LinearAlgebra", "LinearOperators", "QuadGK", "Reexport", "Roots", "SpecialFunctions", "StaticArrays", "TupleTools", "TypedTables"]
-git-tree-sha1 = "72f873533e5575a637422eec5a255d60d2786e0e"
-uuid = "7f078b06-e5c4-4cf8-bb56-b92882a0ad03"
-version = "0.9.0"
-
-    [deps.NeumannKelvin.extensions]
-    NeumannKelvinGeometryBasicsExt = "GeometryBasics"
-    NeumannKelvinMakieExt = "Makie"
-    NeumannKelvinNURBSExt = "NURBS"
-
-    [deps.NeumannKelvin.weakdeps]
-    GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
-    Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
-    NURBS = "dde13934-061e-461b-aa91-2c0fad390a0d"
-
 [[deps.Ogg_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "b6aa4566bb7ae78498a5e68943863fa8b5231b59"
@@ -1118,9 +1497,9 @@ version = "0.5.6+0"
 
 [[deps.Opus_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "39a11854f0cba27aa41efaedf43c77c5daa6be51"
+git-tree-sha1 = "e2bb57a313a74b8104064b7efd01406c0a50d2ff"
 uuid = "91d4177d-7536-5919-b921-800302f37372"
-version = "1.6.0+0"
+version = "1.6.1+0"
 
 [[deps.OrderedCollections]]
 git-tree-sha1 = "05868e21324cede2207c6f0f466b4bfef6d5e7ee"
@@ -1173,9 +1552,9 @@ version = "1.4.4"
 
 [[deps.Plots]]
 deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers", "GR", "JLFzf", "JSON", "LaTeXStrings", "Latexify", "LinearAlgebra", "Measures", "NaNMath", "Pkg", "PlotThemes", "PlotUtils", "PrecompileTools", "Printf", "REPL", "Random", "RecipesBase", "RecipesPipeline", "Reexport", "RelocatableFolders", "Requires", "Scratch", "Showoff", "SparseArrays", "Statistics", "StatsBase", "TOML", "UUIDs", "UnicodeFun", "Unzip"]
-git-tree-sha1 = "063ef757a1e0e15af77bbe92be92da672793fd4e"
+git-tree-sha1 = "1cc8ad0762e59e713ee3ef28f9b78b2c9f4ca078"
 uuid = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-version = "1.41.4"
+version = "1.41.5"
 
     [deps.Plots.extensions]
     FileIOExt = "FileIO"
@@ -1202,12 +1581,6 @@ deps = ["TOML"]
 git-tree-sha1 = "522f093a29b31a93e34eaea17ba055d850edea28"
 uuid = "21216c6a-2e73-6563-6e65-726566657250"
 version = "1.5.1"
-
-[[deps.PrettyTables]]
-deps = ["Crayons", "LaTeXStrings", "Markdown", "PrecompileTools", "Printf", "REPL", "Reexport", "StringManipulation", "Tables"]
-git-tree-sha1 = "c5a07210bd060d6a8491b0ccdee2fa0235fc00bf"
-uuid = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
-version = "3.1.2"
 
 [[deps.Printf]]
 deps = ["Unicode"]
@@ -1294,28 +1667,6 @@ git-tree-sha1 = "62389eeff14780bfe55195b7204c0d8738436d64"
 uuid = "ae029012-a4dd-5104-9daa-d747884805df"
 version = "1.3.1"
 
-[[deps.Roots]]
-deps = ["Accessors", "CommonSolve", "Printf"]
-git-tree-sha1 = "8a433b1ede5e9be9a7ba5b1cc6698daa8d718f1d"
-uuid = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
-version = "2.2.10"
-
-    [deps.Roots.extensions]
-    RootsChainRulesCoreExt = "ChainRulesCore"
-    RootsForwardDiffExt = "ForwardDiff"
-    RootsIntervalRootFindingExt = "IntervalRootFinding"
-    RootsSymPyExt = "SymPy"
-    RootsSymPyPythonCallExt = "SymPyPythonCall"
-    RootsUnitfulExt = "Unitful"
-
-    [deps.Roots.weakdeps]
-    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-    ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
-    IntervalRootFinding = "d2bf35a9-74e0-55ec-b149-d360ff49b807"
-    SymPy = "24249f21-da20-56a4-8eb1-6a02cf4ae2e6"
-    SymPyPythonCall = "bc8888f7-b21e-4b7c-a06a-5d9c9496438c"
-    Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
-
 [[deps.SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 version = "0.7.0"
@@ -1361,33 +1712,18 @@ deps = ["IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_j
 git-tree-sha1 = "f2685b435df2613e25fc10ad8c26dddb8640f547"
 uuid = "276daf66-3868-5448-9aa4-cd146d93841b"
 version = "2.6.1"
-weakdeps = ["ChainRulesCore"]
 
     [deps.SpecialFunctions.extensions]
     SpecialFunctionsChainRulesCoreExt = "ChainRulesCore"
 
-[[deps.SplitApplyCombine]]
-deps = ["Dictionaries", "Indexing"]
-git-tree-sha1 = "c06d695d51cfb2187e6848e98d6252df9101c588"
-uuid = "03a91e81-4c3e-53e1-a0a4-9c0c8f19dd66"
-version = "1.2.3"
+    [deps.SpecialFunctions.weakdeps]
+    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 
 [[deps.StableRNGs]]
 deps = ["Random"]
 git-tree-sha1 = "4f96c596b8c8258cc7d3b19797854d368f243ddc"
 uuid = "860ef19b-820b-49d6-a774-d7a799459cd3"
 version = "1.0.4"
-
-[[deps.StaticArrays]]
-deps = ["LinearAlgebra", "PrecompileTools", "Random", "StaticArraysCore"]
-git-tree-sha1 = "eee1b9ad8b29ef0d936e3ec9838c7ec089620308"
-uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.9.16"
-weakdeps = ["ChainRulesCore", "Statistics"]
-
-    [deps.StaticArrays.extensions]
-    StaticArraysChainRulesCoreExt = "ChainRulesCore"
-    StaticArraysStatisticsExt = "Statistics"
 
 [[deps.StaticArraysCore]]
 git-tree-sha1 = "6ab403037779dae8c514bad259f32a447262455a"
@@ -1415,12 +1751,6 @@ deps = ["AliasTables", "DataAPI", "DataStructures", "IrrationalConstants", "Line
 git-tree-sha1 = "aceda6f4e598d331548e04cc6b2124a6148138e3"
 uuid = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 version = "0.34.10"
-
-[[deps.StringManipulation]]
-deps = ["PrecompileTools"]
-git-tree-sha1 = "a3c1536470bf8c5e02096ad4853606d7c8f62721"
-uuid = "892a3eda-7b42-436c-8928-eab12a02cf0e"
-version = "0.4.2"
 
 [[deps.StructUtils]]
 deps = ["Dates", "UUIDs"]
@@ -1450,18 +1780,6 @@ deps = ["Dates"]
 uuid = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 version = "1.0.3"
 
-[[deps.TableTraits]]
-deps = ["IteratorInterfaceExtensions"]
-git-tree-sha1 = "c06b2f539df1c6efa794486abfb6ed2022561a39"
-uuid = "3783bdb8-4a98-5b6b-af9a-565f29a5fe9c"
-version = "1.0.1"
-
-[[deps.Tables]]
-deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "OrderedCollections", "TableTraits"]
-git-tree-sha1 = "f2c1efbc8f3a609aadf318094f8fc5204bdaf344"
-uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
-version = "1.12.1"
-
 [[deps.Tar]]
 deps = ["ArgTools", "SHA"]
 uuid = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
@@ -1478,33 +1796,10 @@ deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 version = "1.11.0"
 
-[[deps.TimerOutputs]]
-deps = ["ExprTools", "Printf"]
-git-tree-sha1 = "3748bd928e68c7c346b52125cf41fff0de6937d0"
-uuid = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
-version = "0.5.29"
-
-    [deps.TimerOutputs.extensions]
-    FlameGraphsExt = "FlameGraphs"
-
-    [deps.TimerOutputs.weakdeps]
-    FlameGraphs = "08572546-2f56-4bcf-ba4e-bab62c3a3f89"
-
 [[deps.TranscodingStreams]]
 git-tree-sha1 = "0c45878dcfdcfa8480052b6ab162cdd138781742"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 version = "0.11.3"
-
-[[deps.TupleTools]]
-git-tree-sha1 = "41e43b9dc950775eac654b9f845c839cd2f1821e"
-uuid = "9d95972d-f1c8-5527-a6e0-b4b365fa01f6"
-version = "1.6.0"
-
-[[deps.TypedTables]]
-deps = ["Adapt", "Dictionaries", "Indexing", "SplitApplyCombine", "Tables", "Unicode"]
-git-tree-sha1 = "84fd7dadde577e01eb4323b7e7b9cb51c62c60d4"
-uuid = "9d95f2ec-7b3d-5a63-8d20-e2491e220bb9"
-version = "1.4.6"
 
 [[deps.URIs]]
 git-tree-sha1 = "bef26fb046d031353ef97a82e3fdb6afe7f21b1a"
@@ -1525,17 +1820,6 @@ deps = ["REPL"]
 git-tree-sha1 = "53915e50200959667e78a92a418594b428dffddf"
 uuid = "1cfade01-22cf-5700-b092-accc4b62d6e1"
 version = "0.4.1"
-
-[[deps.UnsafeAtomics]]
-git-tree-sha1 = "b13c4edda90890e5b04ba24e20a310fbe6f249ff"
-uuid = "013be700-e6cd-48c3-b4a1-df204f14c38f"
-version = "0.3.0"
-
-    [deps.UnsafeAtomics.extensions]
-    UnsafeAtomicsLLVM = ["LLVM"]
-
-    [deps.UnsafeAtomics.weakdeps]
-    LLVM = "929cbde3-209d-540e-8aea-75f648917ca0"
 
 [[deps.Unzip]]
 git-tree-sha1 = "ca0969166a028236229f63514992fc073799bb78"
@@ -1785,12 +2069,6 @@ deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
 version = "1.64.0+1"
 
-[[deps.oneTBB_jll]]
-deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl"]
-git-tree-sha1 = "1350188a69a6e46f799d3945beef36435ed7262f"
-uuid = "1317d2d5-d96f-522e-a858-c73665f53c3e"
-version = "2022.0.0+1"
-
 [[deps.p7zip_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
@@ -1816,19 +2094,43 @@ version = "1.13.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═2475330c-407b-423d-86a5-304ac9912550
 # ╟─70405296-1194-11f1-9405-d9767047a758
 # ╟─0a404508-191f-4dab-91da-5deab000a898
 # ╟─eb4a0f96-b7d7-40ef-91d2-45629d9af7bb
 # ╟─1584554f-cdfd-4a88-87b7-0f363a83ad99
 # ╟─9025848e-6135-4f4f-bbc1-454471b6b9ca
+# ╟─827a5d64-da1f-403a-acd9-44388017989e
+# ╟─0885c026-db4a-40e2-8e2e-ccea9d71a4ab
+# ╟─006dc34c-a237-4491-9427-3bda5f182ac1
+# ╟─fcac3951-19ba-4833-ad6e-4f4e59af471e
+# ╟─8cacc866-85aa-4df7-ae09-f718ff4651e0
+# ╟─a1219ed4-71ac-4795-8372-94dd8249f716
+# ╟─9a0e9c9d-c181-4f36-8345-971198b1cf1a
+# ╟─68565fb3-eff4-4672-8163-a95d7535485e
+# ╟─412d266a-a7a8-41c2-b50d-4b31dd5aa22f
+# ╟─48870183-25fd-4178-bb1c-26997220e861
+# ╟─ce93a8de-55cb-4d4c-8652-feb8b186b230
 # ╠═32078ab3-7e7f-4914-9c97-719f215c3689
-# ╠═09ce331e-95e0-409b-8318-c29bbf1cb645
-# ╠═a2396c30-097f-48a7-9540-502959859b55
-# ╠═8cd59207-ce7e-43ec-8fa1-8b95eef3b8ea
-# ╠═43ca1239-6a6d-429e-a561-4bc12449f214
-# ╠═bbf1ec87-16b4-438c-b4f1-04a31af6e72b
-# ╠═91d896c9-8642-4d3a-8d38-4a7e385c4bf9
-# ╠═ccdf91db-6977-43aa-947a-f14ecc4774b5
+# ╠═f8c6cda0-9b22-4664-b147-90acd1ff54c7
+# ╠═b709e3c5-0403-460f-965d-f2e616ed2b23
+# ╠═3636eb24-e623-43b4-84c0-e2428adaefb7
+# ╠═82b3129b-19bd-4ea1-95f3-31bae45ce6ea
+# ╠═4e969a8e-52cb-475d-865b-502603139947
+# ╠═57c82473-5d28-47ed-8631-7e3c7d2a4ca5
+# ╠═60d43448-f8fc-4396-9570-7a3884fca4bc
+# ╠═8bf20000-bd56-400f-a998-04cf48408615
+# ╠═cc16f588-e05a-437a-a5f9-f11b6f047a68
+# ╠═8b4970e9-f394-4084-a003-2a44cc537dda
+# ╠═4ded5a86-ba96-4387-a6a4-519e1252aea3
+# ╠═94f728bc-021a-4c3f-af50-a95788cdb4db
+# ╠═609e7df4-d89a-489f-9a04-28200d8d13c6
+# ╠═93bf9046-8b42-46ab-81a0-4b2106e19c4b
+# ╠═24349668-096b-4f47-b477-d1692b465aa4
+# ╠═fbe59043-a496-4928-8857-181602f4624a
+# ╠═f4928137-b1eb-4b5d-b2f4-992f97560696
+# ╠═db6ed3cb-4248-4d32-b937-f41c42e9f12c
+# ╠═40f2709d-fed9-4ac3-9d19-89a5dd2390a6
+# ╠═7db133ba-b0dc-4e8a-ae9f-be660595c836
+# ╠═2ce84cad-43bb-4494-a9a9-fcd7129c44e2
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
